@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Ari — запись к мастерам Еревана</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4E9E4; --card:#FFFFFF; --ink:#231A1E; --muted:#7A6A6E; --line:#E6D6CF;
+  --accent:#8E1F3A; --accent-ink:#FFFFFF; --apricot:#F4B26B; --apricot-soft:#FBE3C6; --ok:#2F7A4F;
+  --shadow:0 1px 0 rgba(35,26,30,.04), 0 8px 24px -12px rgba(35,26,30,.18);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1A1417; --card:#251D21; --ink:#F4E9E4; --muted:#B3A3A7; --line:#3A2E33;
+    --accent:#E0607A; --accent-ink:#1A1417; --apricot:#F4B26B; --apricot-soft:#3D2E22; --ok:#6FCF97;
+    --shadow:0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1A1417; --card:#251D21; --ink:#F4E9E4; --muted:#B3A3A7; --line:#3A2E33;
+  --accent:#E0607A; --accent-ink:#1A1417; --apricot:#F4B26B; --apricot-soft:#3D2E22; --ok:#6FCF97;
+  --shadow:0 8px 24px -12px rgba(0,0,0,.6);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Golos Text",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input,select,textarea{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+img{max-width:100%}
+.app{max-width:480px;margin:0 auto;padding:0 18px 110px}
+h1,h2,h3{font-family:"Unbounded","Golos Text",sans-serif;font-weight:700;letter-spacing:-.01em;margin:0}
+h1{font-size:26px;line-height:1.15}
+h2{font-size:19px;line-height:1.2}
+h3{font-size:16px;line-height:1.25;font-weight:500}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;padding:14px 0 10px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
+.logo{font-family:"Unbounded",sans-serif;font-weight:700;font-size:22px;letter-spacing:-.03em;display:flex;align-items:center;gap:8px}
+.logo i{width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block}
+.role{font-size:14px;font-weight:500;padding:8px 14px;border-radius:999px;background:var(--card);box-shadow:var(--shadow)}
+.back{display:flex;align-items:center;gap:6px;font-weight:500;padding:6px 0}
+
+/* chips & buttons */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;margin:0 -2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:8px 14px;border-radius:999px;background:var(--card);font-size:14px;font-weight:500;border:1px solid var(--line);white-space:nowrap}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.slot{flex:none;padding:10px 14px;border-radius:14px;background:var(--apricot-soft);font-weight:600;font-size:15px;border:1.5px solid transparent;text-align:center}
+.slot small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.slot.on{border-color:var(--accent);background:var(--card)}
+.slot[disabled]{opacity:.35;cursor:default}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;border-radius:18px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:16px;transition:transform .12s}
+.btn:active{transform:scale(.98)}
+.btn[disabled]{opacity:.4}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:10px 14px;border-radius:14px;font-size:14px;width:auto}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.link{color:var(--accent);font-weight:500}
+
+/* cards */
+.card{background:var(--card);border-radius:22px;padding:16px;box-shadow:var(--shadow)}
+.stack{display:flex;flex-direction:column;gap:12px}
+.sec{margin-top:26px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.ava{flex:none;width:56px;height:56px;border-radius:18px;display:grid;place-items:center;font-family:"Unbounded",sans-serif;font-weight:700;font-size:20px;color:#fff}
+.ava.xl{width:88px;height:88px;border-radius:28px;font-size:32px}
+.mcard{display:flex;gap:14px;align-items:flex-start;text-align:left;width:100%}
+.mcard .body{flex:1;min-width:0}
+.mcard .meta{font-size:14px;color:var(--muted);margin-top:2px}
+.mcard .next{display:inline-block;margin-top:10px;font-size:13px;font-weight:600;background:var(--apricot-soft);padding:5px 10px;border-radius:10px}
+.star{color:var(--apricot)}
+
+/* hello */
+.hello{padding:8px 0 4px}
+.hello p{margin-top:6px}
+.search{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:16px;padding:12px 14px;margin:18px 0 12px;border:1px solid var(--line)}
+.search input{border:0;outline:0;background:none;flex:1;min-width:0;font-size:16px}
+.again{display:flex;gap:14px;align-items:center;background:var(--ink);color:var(--bg);border-radius:22px;padding:16px;margin-top:18px}
+.again .btn{background:var(--apricot);color:#231A1E;width:auto;padding:10px 14px;border-radius:14px;font-size:14px}
+
+/* service list */
+.svc{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);text-align:left;width:100%}
+.svc:first-child{border-top:0}
+.svc b{font-weight:600}
+.price{font-weight:600;white-space:nowrap}
+
+/* events */
+.ev{display:flex;gap:14px;text-align:left;width:100%}
+.date{flex:none;width:58px;border-radius:16px;background:var(--apricot-soft);text-align:center;padding:8px 0}
+.date b{display:block;font-family:"Unbounded",sans-serif;font-size:22px;line-height:1.1}
+.date span{font-size:12px;color:var(--muted)}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:3px 8px;border-radius:8px;background:var(--bg);color:var(--muted)}
+.tag.hot{background:var(--accent);color:var(--accent-ink)}
+
+/* tab bar */
+.tabs{position:fixed;left:0;right:0;bottom:0;padding-bottom:env(safe-area-inset-bottom,0px);background:var(--card);border-top:1px solid var(--line);z-index:10}
+.tabs .in{max-width:480px;margin:0 auto;display:flex}
+.tab{flex:1;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--muted);font-weight:500}
+.tab svg{width:24px;height:24px}
+.tab.on{color:var(--accent)}
+
+/* sheet */
+.veil{position:fixed;inset:0;background:rgba(20,12,16,.45);opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
+.veil.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+.sheet.on{transform:none}
+.sheet .in{max-width:480px;margin:0 auto;background:var(--bg);border-radius:28px 28px 0 0;padding:10px 18px calc(20px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow-y:auto}
+.grab{width:40px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 14px}
+.steps{display:flex;gap:6px;margin:4px 0 16px}
+.steps i{flex:1;height:4px;border-radius:4px;background:var(--line)}
+.steps i.on{background:var(--accent)}
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.day{flex:none;width:54px;padding:10px 0;border-radius:16px;background:var(--card);text-align:center;border:1.5px solid transparent}
+.day b{display:block;font-size:18px;font-family:"Unbounded",sans-serif}
+.day span{font-size:12px;color:var(--muted)}
+.day.on{border-color:var(--accent)}
+.day[disabled]{opacity:.35}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:14px;color:var(--muted);font-weight:500}
+.field input,.field select,.field textarea{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px;font-size:16px;width:100%}
+.field textarea{min-height:84px;resize:vertical}
+.note{background:var(--apricot-soft);border-radius:16px;padding:12px 14px;font-size:14px}
+.sum{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line);font-size:15px}
+.sum:last-child{border-bottom:0}
+
+/* done */
+.done{text-align:center;padding-top:30px}
+.check{width:84px;height:84px;border-radius:50%;background:var(--accent);margin:0 auto 20px;display:grid;place-items:center;animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+.check svg{width:40px;height:40px;stroke:var(--accent-ink);stroke-dasharray:40;stroke-dashoffset:40;animation:draw .4s .25s forwards}
+@keyframes pop{from{transform:scale(.3);opacity:0}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.ticket{background:var(--card);border-radius:24px;margin:24px 0 16px;text-align:left;box-shadow:var(--shadow);overflow:hidden}
+.ticket .t1{padding:18px}
+.ticket .t2{padding:14px 18px;border-top:2px dashed var(--line);display:flex;justify-content:space-between;font-size:14px}
+.ticket .big{font-family:"Unbounded",sans-serif;font-size:24px;margin-top:6px}
+.bot{display:flex;gap:10px;align-items:flex-start;text-align:left;background:var(--card);border-radius:18px;padding:12px 14px;font-size:14px;border:1px solid var(--line)}
+
+/* master cabinet */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--card);border-radius:18px;padding:14px 12px;box-shadow:var(--shadow)}
+.stat b{display:block;font-family:"Unbounded",sans-serif;font-size:24px}
+.stat span{font-size:12px;color:var(--muted);line-height:1.2;display:block;margin-top:4px}
+.bk{display:flex;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.bk:first-child{border-top:0}
+.bk .tm{font-family:"Unbounded",sans-serif;font-weight:500;width:56px;flex:none}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.act{background:var(--card);border-radius:18px;padding:16px 14px;text-align:left;font-weight:600;box-shadow:var(--shadow);font-size:15px}
+.act span{display:block;font-weight:400;color:var(--muted);font-size:13px;margin-top:2px}
+.dtog{display:flex;gap:6px}
+.dtog button{flex:1;padding:10px 0;border-radius:12px;background:var(--card);border:1px solid var(--line);font-weight:600;font-size:14px}
+.dtog button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tmpl{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.tmpl:first-child{border-top:0}
+.tmpl input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.tmpl .nm{flex:1}
+.tmpl input[type=number]{width:96px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;text-align:right}
+.story{aspect-ratio:9/16;max-width:220px;margin:0 auto;border-radius:24px;background:var(--accent);color:var(--accent-ink);padding:22px 18px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;box-shadow:var(--shadow)}
+.story .logo{font-size:15px}
+.story .logo i{background:var(--apricot)}
+.story h2{font-size:22px}
+.story .cta{background:var(--apricot);color:#231A1E;border-radius:14px;padding:10px 12px;font-weight:600;font-size:14px;text-align:center}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.sw{width:50px;height:30px;border-radius:30px;background:var(--line);position:relative;flex:none;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw.on{background:var(--accent)}
+.sw.on::after{transform:translateX(20px)}
+.empty{text-align:center;padding:36px 18px}
+.empty p{margin:8px 0 18px}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:14px;font-size:14px;font-weight:500;opacity:0;transition:.25s;z-index:30;pointer-events:none;max-width:90%}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.proto{font-size:12px;color:var(--muted);text-align:center;margin-top:34px}
+.ava.ph{background-size:cover;background-position:center;color:transparent}
+.hero{margin:6px -18px 0;height:260px;background-size:cover;background-position:center 30%;border-radius:0 0 32px 32px;position:relative}
+.hero::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(to bottom,transparent 55%,rgba(20,12,16,.35))}
+.upload{display:flex;gap:14px;align-items:center}
+.upload .ava{cursor:pointer}
+.tg{font-size:13px;color:var(--muted);font-weight:600;margin:14px 0 8px}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--muted);margin-top:14px;text-align:left}
+.consent input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin:0}
+.cta-bar{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom,0px));margin:24px -18px 0;padding:18px 18px 14px;background:linear-gradient(to bottom,transparent,var(--bg) 35%)}
+.plan{border:2px solid var(--line);border-radius:22px;padding:18px;background:var(--card)}
+.plan.on{border-color:var(--accent)}
+.plan .pr{font-family:"Unbounded",sans-serif;font-size:24px;margin:6px 0 10px}
+.plan li{margin:4px 0;font-size:14px}
+.plan ul{padding-left:18px;margin:0}
+.meter{height:8px;border-radius:8px;background:var(--line);overflow:hidden;margin-top:10px}
+.meter i{display:block;height:100%;background:var(--accent)}
+.doc{display:block;width:100%;text-align:left;padding:14px 0;border-top:1px solid var(--line)}
+.doc:first-child{border-top:0}
+.bell{position:relative;width:40px;height:40px;border-radius:50%;background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center}
+.bell svg{width:20px;height:20px}
+.bell.dot::after{content:"";position:absolute;top:8px;right:9px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--card)}
+.topr{display:flex;gap:8px;align-items:center}
+.chat{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.bub{max-width:86%;padding:12px 14px;border-radius:20px 20px 20px 6px;background:var(--card);box-shadow:var(--shadow);animation:rise .3s ease-out both}
+.bub.me{align-self:flex-end;border-radius:20px 20px 6px 20px;background:var(--accent);color:var(--accent-ink)}
+.bub .when{display:block;font-size:11px;color:var(--muted);margin-top:6px;text-align:right}
+.bub.me .when{color:inherit;opacity:.7}
+.bub .kb{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.bub .kb button,.bub .kb a{flex:1;min-width:90px;padding:9px 10px;border-radius:12px;background:var(--bg);font-size:14px;font-weight:600;text-align:center;color:var(--accent);text-decoration:none}
+.bub .kb .done{color:var(--ok);background:none}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.pick{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.pick button{padding:14px 16px;border-radius:16px;background:var(--card);text-align:left;font-weight:600;border:1.5px solid var(--line)}
+.pick button span{display:block;font-weight:400;font-size:13px;color:var(--muted)}
+.idcard{border-radius:26px;padding:22px;background:var(--ink);color:var(--bg);text-align:left;position:relative;overflow:hidden;margin:18px 0}
+.idcard::before{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:var(--accent);opacity:.9}
+.idcard::after{content:"";position:absolute;right:30px;top:60px;width:70px;height:70px;border-radius:50%;background:var(--apricot)}
+.idcard .no{font-family:"Unbounded",sans-serif;font-size:13px;opacity:.7;position:relative}
+.idcard h2{font-size:24px;margin:40px 0 4px;position:relative}
+.idcard p{position:relative;opacity:.75;font-size:14px}
+.tours{display:flex;gap:12px;overflow-x:auto;margin:0 -18px;padding:2px 18px 8px;scrollbar-width:none}
+.tours::-webkit-scrollbar{display:none}
+.tour{flex:none;width:230px;border-radius:22px;padding:16px;background:#1F6F8B;color:#fff;text-align:left;display:flex;flex-direction:column;justify-content:space-between;min-height:150px}
+.tour h3{margin-top:6px}
+.tour span{font-size:13px;opacity:.85}
+.badge{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:600;color:var(--ok);margin-top:10px}
+.sched{font-size:14px;padding:10px 0;border-top:1px solid var(--line);display:flex;gap:12px}
+.sched:first-child{border-top:0}
+.sched b{flex:none;width:112px;font-weight:600}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}.check svg{stroke-dashoffset:0}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<nav class="tabs" id="tabs"></nav>
+<div class="veil" id="veil"></div>
+<div class="sheet" id="sheet"><div class="in" id="sheetIn"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const pad = n => String(n).padStart(2, '0');
+const dkey = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const MON = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const MONS = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const WD = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const WDS = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const money = n => n ? Number(n).toLocaleString('ru-RU') + ' ֏' : 'Бесплатно';
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const toTime = m => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
+function human(k) {
+  const d = fromKey(k), t = today(), diff = Math.round((d - t) / 864e5);
+  const base = d.getDate() + ' ' + MON[d.getMonth()];
+  if (diff === 0) return 'Сегодня, ' + base;
+  if (diff === 1) return 'Завтра, ' + base;
+  return WD[d.getDay()][0].toUpperCase() + WD[d.getDay()].slice(1) + ', ' + base;
+}
+function shortDay(k) {
+  const d = fromKey(k), diff = Math.round((d - today()) / 864e5);
+  if (diff === 0) return 'Сегодня';
+  if (diff === 1) return 'Завтра';
+  return WDS[d.getDay()] + ', ' + d.getDate() + ' ' + MONS[d.getMonth()];
+}
+function plural(n, a, b, c) { n = Math.abs(n) % 100; const n1 = n % 10; if (n > 10 && n < 20) return c; if (n1 > 1 && n1 < 5) return b; if (n1 === 1) return a; return c; }
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2200); }
+
+const ICON = {
+  back: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  search: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.5 3.5 0 010 6.4M18 14.8c1.8.7 3 2.4 3.5 5.2"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  ticket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 8a2 2 0 002-2h14a2 2 0 002 2v2a2 2 0 000 4v2a2 2 0 00-2 2H5a2 2 0 00-2-2v-2a2 2 0 000-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/></svg>',
+  shield: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  bellS: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 004 0"/></svg>',
+  bell: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="flex:none;color:var(--accent)"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 004 0"/></svg>'
+};
+
+/* ---------- data ---------- */
+const CATS = [
+  { id: 'massage', name: 'Массаж', color: '#8E1F3A' },
+  { id: 'beauty', name: 'Бьюти', color: '#C2577A' },
+  { id: 'psy', name: 'Психология', color: '#4B5E8C' },
+  { id: 'photo', name: 'Фото', color: '#2F5D50' },
+  { id: 'yoga', name: 'Йога', color: '#C77B2E' },
+  { id: 'edu', name: 'Обучение', color: '#6B4C8A' },
+  { id: 'tour', name: 'Впечатления', color: '#1F6F8B' }
+];
+const catOf = id => CATS.find(c => c.id === id) || CATS[0];
+const TEMPLATES = {
+  massage: [['Классический массаж', 60, 15000], ['Массаж спины и шеи', 40, 10000], ['Глубокий массаж', 90, 22000]],
+  beauty: [['Маникюр с покрытием', 90, 9000], ['Педикюр', 90, 12000], ['Коррекция бровей', 45, 6000]],
+  psy: [['Консультация', 50, 18000], ['Знакомство', 30, 8000]],
+  photo: [['Портретная съёмка', 60, 30000], ['Контент для соцсетей', 120, 45000]],
+  yoga: [['Индивидуальное занятие', 60, 12000], ['Растяжка', 60, 8000]],
+  edu: [['Урок', 60, 10000], ['Разговорная практика', 60, 8000]],
+  tour: [['Прогулка по старому Еревану', 120, 15000], ['Мастер-класс', 90, 12000]]
+};
+const AREAS = ['Кентрон', 'Арабкир', 'Каскад', 'Малый центр', 'Давташен', 'Норк-Мараш', 'Онлайн'];
+const FAKE = ['Ани', 'Мария', 'Гаянэ', 'Ольга', 'Арсен', 'Лиана', 'Дмитрий', 'Сона', 'Кристина', 'Тигран', 'Алина', 'Нарек'];
+
+function seed() {
+  const t = today();
+  const svc = (cat, pick) => TEMPLATES[cat].slice(0, pick).map(([name, dur, price]) => ({ id: uid(), name, dur, price }));
+  const masters = [
+    { id: 'm1', name: 'Лилит Аветисян', cat: 'massage', about: 'Классический и глубокий массаж. 8 лет практики, работаю мягко и внимательно к телу.', area: 'Кентрон', address: 'ул. Туманяна, 21', prepay: 5000, services: svc('massage', 3), schedule: { days: [1,2,3,4,5,6], from: 10, to: 19 }, rating: 4.9, reviews: 64 },
+    { id: 'm2', name: 'Марина Орлова', cat: 'beauty', about: 'Аккуратный маникюр без спешки. Стерильно, красиво, держится до четырёх недель.', area: 'Арабкир', address: 'ул. Комитаса, 38', prepay: 0, services: svc('beauty', 3), schedule: { days: [2,3,4,5,6,0], from: 11, to: 20 }, rating: 4.8, reviews: 112 },
+    { id: 'm3', name: 'Давид Мартиросян', cat: 'photo', about: 'Снимаю людей так, чтобы они себе нравились. Портреты, контент, прогулки по городу.', area: 'Каскад', address: 'Каскад, у подножия лестницы', prepay: 10000, services: svc('photo', 2), schedule: { days: [3,4,5,6,0], from: 10, to: 18 }, rating: 5.0, reviews: 38 },
+    { id: 'm4', name: 'Софья Ким', cat: 'psy', about: 'Психолог, КПТ. Тревога, адаптация после переезда, выгорание. Можно онлайн.', area: 'Кентрон', address: 'ул. Абовяна, 12, офис 4', prepay: 8000, services: svc('psy', 2), schedule: { days: [1,2,3,4,5], from: 12, to: 20 }, rating: 4.9, reviews: 51 },
+    { id: 'm5', name: 'Нарине Гаспарян', cat: 'yoga', about: 'Хатха-йога и растяжка. Маленькие группы и индивидуальные занятия с утра.', area: 'Каскад', address: 'ул. Таманяна, 5', prepay: 0, services: svc('yoga', 2), schedule: { days: [0,1,2,3,4,5,6], from: 8, to: 13 }, rating: 4.7, reviews: 29 },
+    { id: 'm6', name: 'Арам Ованнисян', cat: 'tour', about: 'Гуляю с гостями по Еревану, которого нет в путеводителях: дворы Конда, советский модернизм, лучший кофе по пути.', area: 'Кентрон', address: 'Площадь Республики, у поющих фонтанов', prepay: 0, services: [{ id: uid(), name: 'Прогулка по старому Еревану', dur: 120, price: 15000 }, { id: uid(), name: 'Вечерний Ереван', dur: 90, price: 12000 }], schedule: { days: [0,1,2,3,4,5,6], from: 10, to: 21 }, rating: 5.0, reviews: 87, langs: 'русский, английский', registry: true },
+    { id: 'm7', name: 'Гоар Мкртчян', cat: 'tour', about: 'Учу печь лаваш в настоящем тонире и готовить долму, как у бабушки. Потом садимся за общий стол.', area: 'Малый центр', address: 'ул. Паронян, 14, двор', prepay: 5000, services: [{ id: uid(), name: 'Мастер-класс по лавашу', dur: 90, price: 12000 }, { id: uid(), name: 'Ужин с мастер-классом', dur: 150, price: 25000 }], schedule: { days: [2,3,4,5,6], from: 11, to: 20 }, rating: 4.9, reviews: 58, langs: 'армянский, русский, английский', registry: true }
+  ];
+  const events = [
+    { id: 'e1', masterId: 'm5', title: 'Утренняя йога на Каскаде', date: dkey(addDays(t, 2)), time: '08:00', dur: 60, price: 3000, places: 15, desc: 'Мягкая практика под открытым небом для любого уровня. Коврик можно взять на месте.' },
+    { id: 'e2', masterId: 'm3', title: 'Портрет на телефон: воркшоп', date: dkey(addDays(t, 5)), time: '16:00', dur: 120, price: 12000, places: 10, desc: 'Разбираем свет, позы и обработку, потом снимаем друг друга на улицах центра.' },
+    { id: 'e3', masterId: 'm4', title: 'Первый год после переезда', date: dkey(addDays(t, 8)), time: '19:00', dur: 90, price: 5000, places: 12, desc: 'Встреча в небольшой группе: говорим про адаптацию, одиночество и опору в новом городе.' },
+    { id: 'e4', masterId: 'm6', title: 'Вечерний Ереван: от Каскада до Оперы', date: dkey(addDays(t, 1)), time: '19:00', dur: 90, price: 7000, places: 14, tourist: true, desc: 'Закат с вершины Каскада, скульптуры Ботеро, прогулка к Опере и история города по дороге. На русском и английском.' },
+    { id: 'e5', masterId: 'm7', title: 'Печём лаваш в тонире', date: dkey(addDays(t, 4)), time: '12:00', dur: 120, price: 15000, places: 8, tourist: true, desc: 'Раскатываем тесто, печём в тонире и едим горячим с сыром и зеленью. Все ингредиенты и фартуки на месте.' }
+  ];
+  const bookings = [];
+  let r = 7;
+  const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+  masters.forEach(m => {
+    for (let i = 0; i < 10; i++) {
+      const d = addDays(t, i);
+      if (!m.schedule.days.includes(d.getDay())) continue;
+      for (let h = m.schedule.from; h < m.schedule.to - 1; h++) {
+        if (rnd() < 0.3) {
+          const s = m.services[0];
+          bookings.push({ id: uid(), masterId: m.id, serviceId: s.id, date: dkey(d), time: pad(h) + ':00', dur: s.dur, clientName: FAKE[Math.floor(rnd() * FAKE.length)], mine: false, status: 'active', source: 'catalog', createdAt: addDays(d, -3).toISOString() });
+          h++;
+        }
+      }
+    }
+  });
+  events.forEach(e => { const n = 3 + Math.floor(rnd() * 6); for (let i = 0; i < n; i++) bookings.push({ id: uid(), eventId: e.id, masterId: e.masterId, date: e.date, time: e.time, dur: e.dur, clientName: FAKE[i % FAKE.length], mine: false, status: 'active', source: 'afisha' }); });
+  const lil = masters[0];
+  bookings.push({ id: uid(), masterId: 'm1', serviceId: lil.services[0].id, date: dkey(addDays(t, -21)), time: '11:00', dur: 60, clientName: 'Вы', mine: true, status: 'active', source: 'catalog', createdAt: addDays(t, -28).toISOString() });
+  return { v: 2, me: { name: '', phone: '' }, masters, events, bookings, myMasterId: null, role: 'client', seen: {} };
+}
+
+/* ---------- данные: сервер в Telegram, localStorage в демо ---------- */
+const W = window.Telegram && window.Telegram.WebApp;
+const TG = !!(W && W.initData);
+const LIVE = TG || /[?&]dev=1/.test(location.search);
+const LS = 'ari_proto_v1';
+let S, READY = !LIVE, BASE = null;
+const ui = (() => { try { return JSON.parse(localStorage.getItem('ari_ui') || '{}'); } catch (e) { return {}; } })();
+if (LIVE) S = { v: 2, me: { name: '', phone: '' }, masters: [], events: [], bookings: [], myMasterId: null, role: ui.role || 'client', seen: ui.seen || {} };
+else { try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; } if (!S || S.v !== 2) S = seed(); }
+
+async function api(method, url, body) {
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Init-Data': TG ? W.initData : '' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Нет связи с сервером, попробуйте ещё раз');
+  return j;
+}
+const pickMe = m => JSON.stringify({ name: m.name || '', phone: m.phone || '', consent: m.consent || '', tourist: !!m.tourist });
+const pickMaster = m => JSON.stringify({ name: m.name, cat: m.cat, about: m.about, area: m.area, address: m.address, prepay: m.prepay, payInfo: m.payInfo, photo: m.photo, langs: m.langs, services: m.services, schedule: m.schedule });
+function snap() { BASE = { me: pickMe(S.me), b: new Map(S.bookings.map(b => [b.id, JSON.stringify(b)])), m: new Map(S.masters.map(m => [m.id, pickMaster(m)])), e: new Set(S.events.map(e => e.id)) }; }
+async function sync() {
+  const d = await api('GET', '/api/bootstrap');
+  if (!d.me.joined) { if (S.me.name && BASE) d.me.name = S.me.name; if (S.me.phone && !d.me.phone) d.me.phone = S.me.phone; d.me.tourist = !!S.me.tourist; }
+  const first = !READY;
+  Object.assign(S, d);
+  if (first && !ui.role && d.myMasterId) { S.role = 'master'; view = { name: 'cab' }; }
+  snap(); READY = true; render();
+}
+function save() {
+  if (!LIVE) { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} return; }
+  try { localStorage.setItem('ari_ui', JSON.stringify({ role: S.role, seen: S.seen })); } catch (e) {}
+  if (!BASE) return;
+  clearTimeout(save.t); save.t = setTimeout(() => { queue = queue.then(pushNow); }, 30);
+}
+let queue = Promise.resolve();
+async function pushNow() {
+  const ops = [];
+  if (pickMe(S.me) !== BASE.me && S.me.consent) ops.push(['POST', '/api/me', { name: S.me.name, phone: S.me.phone, consent: true, tourist: !!S.me.tourist }]);
+  const my = S.myMasterId && S.masters.find(m => m.id === S.myMasterId);
+  if (my && !BASE.m.has(my.id)) ops.push(['POST', '/api/masters', { ...JSON.parse(pickMaster(my)), id: my.id, agree: true }]);
+  else if (my && BASE.m.get(my.id) !== pickMaster(my)) ops.push(['PATCH', '/api/masters/me', JSON.parse(pickMaster(my))]);
+  S.events.filter(e => !BASE.e.has(e.id)).forEach(e => ops.push(['POST', '/api/events', e]));
+  S.bookings.forEach(b => {
+    const prev = BASE.b.get(b.id);
+    if (!prev) { if (b.mine || b.masterId === S.myMasterId) ops.push(['POST', '/api/bookings', b]); return; }
+    if (prev === JSON.stringify(b)) return;
+    const p = JSON.parse(prev), u = '/api/bookings/' + b.id;
+    if (b.status === 'cancelled' && p.status !== 'cancelled') ops.push(['POST', u + '/cancel']);
+    else if (b.date !== p.date || b.time !== p.time) ops.push(['POST', u + '/move', { date: b.date, time: b.time }]);
+    if (b.confirmed && !p.confirmed) ops.push(['POST', u + '/confirm']);
+    if (b.rating && !p.rating) ops.push(['POST', u + '/rate', { v: b.rating }]);
+  });
+  if (!ops.length) return;
+  try { for (const [m, u, body] of ops) await api(m, u, body); } catch (e) { toast(e.message); }
+  try { await sync(); } catch (e) { toast(e.message); }
+}
+function deepLink() {
+  const q = new URLSearchParams(location.search), id = q.get('move') || q.get('rebook');
+  const b = id && S.bookings.find(x => x.id === id && x.mine); if (!b || !S.me.joined) return;
+  if (q.get('move')) startBooking(b.masterId, b.serviceId, b.date, null, b.id);
+  else { go({ name: 'master', id: b.masterId }); if (b.serviceId) startBooking(b.masterId, b.serviceId); }
+}
+
+
+const M = id => S.masters.find(m => m.id === id);
+const E = id => S.events.find(e => e.id === id);
+const svcOf = (m, id) => m.services.find(s => s.id === id);
+const active = b => b.status === 'active';
+const isPast = b => fromKey(b.date) < today() || (b.date === dkey(today()) && toMin(b.time) < new Date().getHours() * 60 + new Date().getMinutes());
+
+/* ---------- slots ---------- */
+function slotsFor(m, key, dur, ignoreId) {
+  const d = fromKey(key);
+  if (!m.schedule.days.includes(d.getDay())) return [];
+  const busy = S.bookings.filter(b => b.masterId === m.id && b.date === key && active(b) && b.id !== ignoreId && !b.eventId)
+    .map(b => [toMin(b.time), toMin(b.time) + (b.dur || 60)]);
+  S.events.filter(e => e.masterId === m.id && e.date === key).forEach(e => busy.push([toMin(e.time), toMin(e.time) + e.dur]));
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes() + 60;
+  const out = [];
+  for (let s = m.schedule.from * 60; s + dur <= m.schedule.to * 60; s += 60) {
+    if (key === dkey(today()) && s < nowMin) continue;
+    if (busy.some(([a, b]) => s < b && s + dur > a)) continue;
+    out.push(toTime(s));
+  }
+  return out;
+}
+function nearest(m, n = 3) {
+  const res = [], dur = (m.services[0] || { dur: 60 }).dur;
+  for (let i = 0; i < 21 && res.length < n; i++) {
+    const k = dkey(addDays(today(), i));
+    slotsFor(m, k, dur).forEach(t => { if (res.length < n) res.push({ k, t }); });
+  }
+  return res;
+}
+const FREE_LIMIT = 20, PRO_PRICE = 4900, EVENT_FEE = 1500;
+const usedThisMonth = m => { const t = today(), pre = t.getFullYear() + '-' + pad(t.getMonth() + 1); return S.bookings.filter(b => b.masterId === m.id && active(b) && b.date.startsWith(pre) && !b.eventId).length; };
+const placesLeft = e => e.places - S.bookings.filter(b => b.eventId === e.id && active(b)).length;
+
+/* ---------- navigation ---------- */
+let view = { name: 'home' }, hist = [], cat = 'all', q = '', afF = 'all';
+function go(v, push = true) { if (push) hist.push(view); view = v; render(); window.scrollTo(0, 0); }
+function back() { view = hist.pop() || { name: S.role === 'master' ? 'cab' : 'home' }; render(); window.scrollTo(0, 0); }
+function tab(name) { hist = []; view = { name }; render(); window.scrollTo(0, 0); }
+
+/* ---------- render ---------- */
+function render() {
+  if (TG) W.BackButton[hist.length ? 'show' : 'hide']();
+  if (!READY) { $('#app').innerHTML = '<div class="empty" style="padding-top:40vh"><div class="logo" style="justify-content:center"><i></i>ari</div></div>'; $('#tabs').innerHTML = ''; return; }
+  if ((!S.me.joined || wz.step === 5) && S.role !== 'master') { $('#app').innerHTML = welcomeView(); $('#tabs').innerHTML = ''; return; }
+  if (view.name === 'inbox') { S.seen[S.role] = Date.now(); save(); }
+  const V = VIEWS[view.name] || VIEWS.home;
+  $('#app').innerHTML = V();
+  renderTabs();
+}
+function topBar(title, withBack) {
+  const role = S.role === 'master' ? 'Я клиент' : 'Я мастер';
+  if (withBack) return `<div class="top"><button class="back" data-a="back">${ICON.back} Назад</button>${title ? '' : ''}</div>`;
+  const unread = notifs().some(n => n.at <= Date.now() && n.at > (S.seen[S.role] || 0));
+  return `<div class="top"><div class="logo"><i></i>ari</div><div class="topr"><button class="role" data-a="role">${role}</button><button class="bell ${unread ? 'dot' : ''}" data-a="tab" data-v="inbox" aria-label="Уведомления">${ICON.bellS}</button></div></div>`;
+}
+function renderTabs() {
+  const t = S.role === 'master'
+    ? [['cab', 'Кабинет', ICON.home], ['inbox', 'Уведомления', ICON.bellS], ['home', 'Как клиент', ICON.people]]
+    : [['home', 'Мастера', ICON.people], ['afisha', 'Афиша', ICON.ticket], ['mine', 'Мои записи', ICON.cal]];
+  const cur = { master: 'home', event: 'afisha', done: 'mine', plan: 'cab', inbox: S.role === 'master' ? 'inbox' : 'mine', docs: S.role === 'master' ? 'cab' : 'home' }[view.name] || view.name;
+  $('#tabs').innerHTML = `<div class="in">${t.map(([id, l, ic]) => `<button class="tab ${cur === id ? 'on' : ''}" data-a="${id === 'home' && S.role === 'master' ? 'asClient' : 'tab'}" data-v="${id}">${ic}${l}</button>`).join('')}</div>`;
+}
+function ava(m, cls = '') { const c = catOf(m.cat); if (m.photo) return `<div class="ava ph ${cls}" style="background-image:url('${m.photo}')" role="img" aria-label="${esc(m.name)}"></div>`; return `<div class="ava ${cls}" style="background:${c.color}">${esc((m.name || '?').trim()[0] || '?')}</div>`; }
+const CONSENT = 'Соглашаюсь с <button class="link" data-a="docs">пользовательским соглашением</button> и даю согласие на обработку персональных данных';
+
+const VIEWS = {
+  home() {
+    const again = S.bookings.filter(b => b.mine && active(b) && !b.eventId && isPast(b)).sort((a, b) => b.date.localeCompare(a.date))[0];
+    const hasFuture = again && S.bookings.some(b => b.mine && active(b) && b.masterId === again.masterId && !isPast(b));
+    let againHtml = '';
+    if (again && !hasFuture) {
+      const m = M(again.masterId), s = svcOf(m, again.serviceId), weeks = Math.round((today() - fromKey(again.date)) / 6048e5);
+      againHtml = `<div class="again">${ava(m)}<div style="flex:1"><p class="small" style="opacity:.75">${weeks} ${plural(weeks, 'неделю', 'недели', 'недель')} назад</p><h3>${esc(s ? s.name : 'Визит')} у ${esc(m.name.split(' ')[0])}</h3></div><button class="btn" data-a="rebook" data-id="${again.id}">Повторить</button></div>`;
+    }
+    const list = S.masters.filter(m => (cat === 'all' || m.cat === cat) && (!q || (m.name + ' ' + catOf(m.cat).name + ' ' + m.services.map(s => s.name).join(' ')).toLowerCase().includes(q.toLowerCase())));
+    return `${topBar()}
+    <div class="hello"><h1>${S.me.name ? 'Привет, ' + esc(S.me.name.split(' ')[0]) : 'Мастера Еревана'}</h1><p class="muted">Запись без переписки — в три касания</p></div>
+    ${againHtml}
+    ${tourBlock()}
+    <label class="search">${ICON.search}<input id="q" placeholder="Массаж, маникюр, фотограф…" value="${esc(q)}"></label>
+    <div class="chips"><button class="chip ${cat === 'all' ? 'on' : ''}" data-a="cat" data-v="all">Все</button>${CATS.map(c => `<button class="chip ${cat === c.id ? 'on' : ''}" data-a="cat" data-v="${c.id}">${c.name}</button>`).join('')}</div>
+    <div class="stack" style="margin-top:14px">${list.map(m => {
+      const n = nearest(m, 1)[0], from = Math.min(...m.services.map(s => s.price));
+      return `<button class="card mcard" data-a="master" data-id="${m.id}">${ava(m)}<div class="body"><h3>${esc(m.name)}</h3><p class="meta">${catOf(m.cat).name}, ${esc(m.area)}${m.rating ? ` <span class="star">★</span> ${m.rating}` : ''}</p><p class="meta">от ${money(from)}</p>${n ? `<span class="next">${shortDay(n.k)} в ${n.t}</span>` : '<span class="next" style="background:var(--bg)">Нет окон на 3 недели</span>'}</div></button>`;
+    }).join('') || `<div class="empty"><h2>Никого не нашли</h2><p class="muted">Попробуйте другое слово или категорию</p><button class="btn ghost" data-a="cat" data-v="all">Показать всех</button></div>`}</div>
+    <p class="proto">Прототип. Данные хранятся только на этом устройстве. <button class="link" data-a="docs">Документы</button> · ${LIVE ? '' : '<button class="link" data-a="reset">Сбросить</button>'}</p>`;
+  },
+
+  master() {
+    const m = M(view.id); if (!m) return VIEWS.home();
+    const ns = nearest(m, 4), evs = S.events.filter(e => e.masterId === m.id && fromKey(e.date) >= today());
+    return `${topBar('', true)}
+    ${m.photo ? `<div class="hero" style="background-image:url('${m.photo}')" role="img" aria-label="${esc(m.name)}"></div>` : ''}
+    <div style="display:flex;gap:16px;align-items:center;margin-top:${m.photo ? '18px' : '8px'}">${m.photo ? '' : ava(m, 'xl')}<div><h1 style="font-size:22px">${esc(m.name)}</h1><p class="muted small" style="margin-top:4px">${catOf(m.cat).name}${m.rating ? ` <span class="star">★</span> ${m.rating}, ${m.reviews} ${plural(m.reviews, 'отзыв', 'отзыва', 'отзывов')}` : ', новый мастер'}</p></div></div>
+    ${m.about ? `<p style="margin-top:16px">${esc(m.about)}</p>` : ''}
+    <p class="muted small" style="margin-top:10px">${esc(m.area)}${m.address ? ', ' + esc(m.address) : ''}</p>
+    ${m.langs ? `<p class="muted small" style="margin-top:4px">Язык: ${esc(m.langs)}</p>` : ''}
+    ${m.registry ? `<p class="badge">${ICON.shield} В реестре туристических услуг РА</p>` : ''}
+    <div class="sec"><div class="sec-h"><h2>Ближайшие окна</h2></div>
+      ${ns.length ? `<div class="chips">${ns.map(n => `<button class="slot" data-a="quick" data-id="${m.id}" data-k="${n.k}" data-t="${n.t}"><small>${shortDay(n.k)}</small>${n.t}</button>`).join('')}</div>` : '<p class="muted">Свободных окон пока нет</p>'}
+    </div>
+    <div class="sec"><div class="sec-h"><h2>Услуги</h2></div><div class="card" style="padding:4px 16px">${m.services.map(s => `<button class="svc" data-a="book" data-id="${m.id}" data-s="${s.id}"><div><b>${esc(s.name)}</b><p class="muted small">${s.dur} мин</p></div><span class="price">${money(s.price)}</span></button>`).join('') || '<p class="muted" style="padding:12px 0">Мастер ещё не добавил услуги</p>'}</div></div>
+    ${evs.length ? `<div class="sec"><div class="sec-h"><h2>События мастера</h2></div><div class="stack">${evs.map(evCard).join('')}</div></div>` : ''}
+    ${m.prepay ? `<div class="note" style="margin-top:20px">Мастер берёт предоплату ${money(m.prepay)}. Бесплатная отмена за 24 часа.</div>` : ''}
+    <div class="cta-bar"><button class="btn" data-a="book" data-id="${m.id}" ${m.services.length ? '' : 'disabled'}>Записаться</button></div>`;
+  },
+
+  afisha() {
+    const list = S.events.filter(e => fromKey(e.date) >= today() && (afF === 'all' || e.tourist)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    return `${topBar()}<div class="hello"><h1>Афиша</h1><p class="muted">Воркшопы, встречи и прогулки от людей города</p></div>
+    <div class="chips" style="margin-top:16px"><button class="chip ${afF === 'all' ? 'on' : ''}" data-a="afF" data-v="all">Все события</button><button class="chip ${afF === 'tour' ? 'on' : ''}" data-a="afF" data-v="tour">Для гостей города</button></div>
+    <div class="stack" style="margin-top:12px">${list.map(evCard).join('') || '<div class="empty"><h2>Пока пусто</h2><p class="muted">Скоро здесь появятся события</p></div>'}</div>`;
+  },
+
+  event() {
+    const e = E(view.id); if (!e) return VIEWS.afisha();
+    const m = M(e.masterId), left = placesLeft(e), going = S.bookings.find(b => b.eventId === e.id && b.mine && active(b));
+    return `${topBar('', true)}
+    <div class="date" style="width:72px;margin-top:6px"><b>${fromKey(e.date).getDate()}</b><span>${MONS[fromKey(e.date).getMonth()]}</span></div>
+    <h1 style="margin-top:16px">${esc(e.title)}</h1>
+    <p class="muted" style="margin-top:8px">${human(e.date)}, ${e.time}, ${e.dur} мин</p>
+    <p style="margin-top:16px">${esc(e.desc)}</p>
+    ${m.langs ? `<p class="small muted" style="margin-top:10px">Язык: ${esc(m.langs)}</p>` : ''}
+    ${m.registry ? `<p class="badge">${ICON.shield} В реестре туристических услуг РА</p>` : ''}
+    <button class="card mcard" style="margin-top:20px" data-a="master" data-id="${m.id}">${ava(m)}<div class="body"><p class="muted small">Ведёт</p><h3>${esc(m.name)}</h3><p class="meta">${esc(m.address || m.area)}</p></div></button>
+    <div class="row" style="margin-top:16px"><div class="stat"><b style="font-size:18px">${money(e.price)}</b><span>стоимость</span></div><div class="stat"><b style="font-size:18px">${left}</b><span>${plural(left, 'место осталось', 'места осталось', 'мест осталось')}</span></div></div>
+    <div style="margin-top:24px">${going ? `<div class="note">Вы идёте. Напоминание придёт за день.</div><button class="btn ghost" style="margin-top:10px" data-a="cancel" data-id="${going.id}">Не смогу прийти</button>` : `<button class="btn" data-a="go" data-id="${e.id}" ${left > 0 ? '' : 'disabled'}>${left > 0 ? 'Иду' : 'Мест нет'}</button>`}</div>`;
+  },
+
+  mine() {
+    const my = S.bookings.filter(b => b.mine && active(b));
+    const up = my.filter(b => !isPast(b)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    const past = my.filter(isPast).sort((a, b) => b.date.localeCompare(a.date));
+    const card = (b, p) => {
+      const m = M(b.masterId), e = b.eventId && E(b.eventId), s = !e && svcOf(m, b.serviceId);
+      return `<div class="card"><div style="display:flex;gap:14px">${ava(m)}<div style="flex:1;min-width:0"><p class="small muted">${human(b.date)}, ${b.time}</p><h3 style="margin-top:2px">${esc(e ? e.title : s ? s.name : 'Запись')}</h3><p class="meta small muted">${esc(m.name)}${e ? ', событие' : ''}</p></div></div>
+      <div class="row" style="margin-top:14px">${p
+        ? (e ? '' : `<button class="btn small" data-a="rebook" data-id="${b.id}">Записаться снова</button>`) + (b.rating ? `<span class="small muted" style="align-self:center;text-align:right">Ваша оценка ${'★'.repeat(b.rating)}</span>` : `<span style="display:flex;gap:2px;justify-content:flex-end">${[1,2,3,4,5].map(i => `<button data-a="rate" data-id="${b.id}" data-v="${i}" style="font-size:22px;color:var(--apricot)" aria-label="Оценка ${i}">☆</button>`).join('')}</span>`)
+        : (e ? '' : `<button class="btn small ghost" data-a="move" data-id="${b.id}">Перенести</button>`) + `<button class="btn small ghost" data-a="cancel" data-id="${b.id}">Отменить</button>`}</div></div>`;
+    };
+    return `${topBar()}<div class="hello"><h1>Мои записи</h1></div>
+    ${up.length ? `<div class="stack" style="margin-top:18px">${up.map(b => card(b, false)).join('')}</div>` : `<div class="empty card" style="margin-top:18px"><h2>Впереди ничего нет</h2><p class="muted">Найдите мастера или загляните в афишу</p><button class="btn" data-a="tab" data-v="home">К мастерам</button></div>`}
+    ${past.length ? `<div class="sec"><div class="sec-h"><h2>Были раньше</h2></div><div class="stack">${past.map(b => card(b, true)).join('')}</div></div>` : ''}`;
+  },
+
+  done() {
+    const b = S.bookings.find(x => x.id === view.id); if (!b) return VIEWS.mine();
+    const m = M(b.masterId), e = b.eventId && E(b.eventId), s = !e && svcOf(m, b.serviceId);
+    const title = e ? e.title : s.name, dur = e ? e.dur : s.dur;
+    const st = b.date.replace(/-/g, '') + 'T' + b.time.replace(':', '') + '00', en = b.date.replace(/-/g, '') + 'T' + toTime(toMin(b.time) + dur).replace(':', '') + '00';
+    const gcal = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(title + ' — ' + m.name) + '&dates=' + st + '/' + en + '&location=' + encodeURIComponent('Ереван, ' + (m.address || m.area));
+    const map = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Yerevan ' + (m.address || m.area));
+    return `<div class="done"><div class="check">${ICON.check}</div><h1>${view.moved ? 'Перенесли' : e ? 'Вы идёте' : 'Вы записаны'}</h1><p class="muted" style="margin-top:8px">${esc(m.name.split(' ')[0])} ждёт вас</p>
+    <div class="ticket"><div class="t1"><p class="muted small">${esc(title)}</p><div class="big">${human(b.date)}</div><div class="big" style="color:var(--accent)">${b.time}</div></div>
+    <div class="t2"><span>${esc(m.address || m.area)}</span><b>${money(e ? e.price : s.price)}</b></div></div>
+    ${!e && m.prepay && !view.moved ? `<div class="note" style="text-align:left;margin-bottom:12px"><b>Предоплата ${money(m.prepay)} — напрямую мастеру</b><br>${esc(m.payInfo || 'Реквизиты мастер пришлёт в Telegram')}<br><span class="muted">Бесплатная отмена за 24 часа.</span></div>` : ''}
+    <div class="row"><a class="btn ghost" href="${gcal}" target="_blank" rel="noopener" style="text-decoration:none">В календарь</a><a class="btn ghost" href="${map}" target="_blank" rel="noopener" style="text-decoration:none">Маршрут</a></div>
+    <div class="bot" style="margin-top:16px">${ICON.bell}<span>Напомним за день и за 2 часа. Перенести или отменить можно прямо из напоминания.</span></div>
+    <button class="btn" style="margin-top:20px" data-a="tab" data-v="mine">Мои записи</button></div>`;
+  },
+
+  /* ---------- master side ---------- */
+  cab() {
+    if (!S.myMasterId || (ob && ob.step === 5)) return onboardView();
+    const m = M(S.myMasterId);
+    const mine = S.bookings.filter(b => b.masterId === m.id && active(b) && !isPast(b)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    const week = mine.filter(b => fromKey(b.date) < addDays(today(), 7));
+    const todayN = mine.filter(b => b.date === dkey(today())).length;
+    const clients = new Set(week.map(b => b.clientName)).size, fromAf = week.filter(b => b.source === 'afisha').length;
+    const byDay = {}; mine.slice(0, 30).forEach(b => (byDay[b.date] = byDay[b.date] || []).push(b));
+    const visits = name => S.bookings.filter(b => b.masterId === m.id && b.clientName === name && active(b)).length;
+    return `${topBar()}<div class="hello"><h1>Привет, ${esc(m.name.split(' ')[0])}</h1><p class="muted">${todayN ? `Сегодня ${todayN} ${plural(todayN, 'запись', 'записи', 'записей')}` : 'Сегодня записей нет'}</p></div>
+    <div class="stats" style="margin-top:18px"><div class="stat"><b>${week.length}</b><span>записей за 7 дней</span></div><div class="stat"><b>${clients}</b><span>${plural(clients, 'клиент', 'клиента', 'клиентов')}</span></div><div class="stat"><b>${fromAf}</b><span>пришли из афиши</span></div></div>
+    <div class="acts" style="margin-top:14px">
+      <button class="act" data-a="myPage">Моя страница<span>как её видят клиенты</span></button>
+      <button class="act" data-a="newEvent">Создать событие<span>попадёт в афишу</span></button>
+      <button class="act" data-a="manual">Добавить запись<span>если написали в WhatsApp</span></button>
+      <button class="act" data-a="editSvc">Услуги и график<span>цены, часы, дни</span></button>
+      <button class="act" data-a="plan">Тариф<span>${m.plan === 'pro' ? 'Pro активен' : usedThisMonth(m) + ' из ' + FREE_LIMIT + ' записей в месяц'}</span></button>
+      <button class="act" data-a="docs">Документы<span>оферта и данные клиентов</span></button>
+    </div>
+    <div class="sec"><div class="sec-h"><h2>Ближайшие записи</h2></div>
+    ${Object.keys(byDay).length ? Object.entries(byDay).map(([k, list]) => `<p class="small muted" style="margin:14px 0 6px;font-weight:600">${human(k)}</p><div class="card" style="padding:4px 16px">${list.map(b => {
+      const e = b.eventId && E(b.eventId), s = !e && svcOf(m, b.serviceId), v = visits(b.clientName);
+      return `<div class="bk"><span class="tm">${b.time}</span><div style="flex:1"><b>${esc(b.clientName)}</b>${b.mine ? ' <span class="tag">вы</span>' : ''}${b.confirmed ? ' <span class="tag" style="color:var(--ok)">подтвердил</span>' : ''}${b.source === 'afisha' ? ' <span class="tag hot">из афиши</span>' : ''}<p class="small muted">${esc(e ? e.title : s ? s.name : '')}${!e && v > 1 ? `, ${v}-й визит` : !e ? ', новый клиент' : ''}</p></div></div>`;
+    }).join('')}</div>`).join('') : `<div class="empty card"><h2>Записей пока нет</h2><p class="muted">Поделитесь своей страницей в сторис — клиенты запишутся сами</p><button class="btn" data-a="story">Показать карточку для сторис</button></div>`}</div>
+    <p class="proto">Прототип. Чтобы проверить путь целиком, переключитесь на «Я клиент» и запишитесь к себе. ${LIVE ? '' : '<button class="link" data-a="reset">Сбросить</button>'}</p>`;
+  }
+};
+
+VIEWS.plan = () => {
+  const m = M(S.myMasterId); if (!m) return VIEWS.cab();
+  const used = usedThisMonth(m), pro = m.plan === 'pro';
+  return `${topBar('', true)}<h1 style="margin-top:6px">Тариф</h1><p class="muted" style="margin:8px 0 20px">Клиенты записываются к вам бесплатно в любом тарифе</p>
+  <div class="stack">
+    <div class="plan ${pro ? '' : 'on'}"><h3>Старт</h3><div class="pr">Бесплатно</div><ul><li>До ${FREE_LIMIT} записей в месяц</li><li>Страница мастера и напоминания клиентам</li><li>События в афише — ${money(EVENT_FEE)} за штуку</li></ul>
+      ${pro ? '' : `<div class="meter"><i style="width:${Math.min(100, used / FREE_LIMIT * 100)}%"></i></div><p class="small muted" style="margin-top:6px">В этом месяце ${used} из ${FREE_LIMIT}</p>`}</div>
+    <div class="plan ${pro ? 'on' : ''}"><h3>Pro</h3><div class="pr">${money(PRO_PRICE)} <span class="small muted" style="font-family:'Golos Text'">в месяц</span></div><ul><li>Без лимита записей</li><li>События в афише без доплат</li><li>Приоритет в каталоге и статистика</li></ul>
+      ${pro ? '<p class="small" style="margin-top:12px;color:var(--ok);font-weight:600">Активен</p>' : `<button class="btn" style="margin-top:14px" data-a="payPro">Подключить Pro</button>`}</div>
+  </div>
+  <p class="small muted" style="margin-top:16px">Оплата подписки — на счёт ИП, электронный чек приходит на почту. Отменить можно в любой момент.</p>`;
+};
+VIEWS.docs = () => {
+  const D = [
+    ['Пользовательское соглашение', 'Для клиентов: как работает запись, отмена и перенос, что сервис не отвечает за качество услуг мастера'],
+    ['Политика конфиденциальности', 'Какие данные собираем (имя, телефон, записи), зачем, где храним, как удалить'],
+    ['Оферта для мастеров', 'Подписка, цены, оплата на счёт ИП, чеки, ответственность мастера за своих клиентов'],
+    ['Правила афиши', 'Что можно публиковать, оплата участниками напрямую ведущему, возвраты']
+  ];
+  return `${topBar('', true)}<h1 style="margin-top:6px">Документы</h1><p class="muted" style="margin:8px 0 18px">Черновики структуры. Финальные тексты — после проверки юристом, на армянском и русском</p>
+  <div class="card" style="padding:4px 16px">${D.map(([t, d]) => `<div class="doc"><b>${t}</b><p class="small muted" style="margin-top:2px">${d}</p></div>`).join('')}</div>
+  ${LIVE && S.me.joined ? '<div class="note" style="margin-top:14px">Мы храним имя, телефон и ваши записи — только для записи и напоминаний. Прошедшие записи удаляются через год.</div><button class="btn ghost" style="margin-top:12px" data-a="delMe">Удалить мои данные</button>' : '<div class="note" style="margin-top:14px">Удалить свои данные можно в любой момент: напишите в поддержку, и мы удалим их в течение 10 дней.</div>'}`;
+};
+/* ---------- welcome / registration ---------- */
+const wz = { step: 1 };
+function wzAct(v) {
+  if (v === 'master') { S.me.joined = true; S.role = 'master'; save(); tab('cab'); return; }
+  S.me.tourist = v === 'tour'; wz.step = 2; render();
+}
+function welcomeView() {
+  const B = (t, me) => `<div class="bub ${me ? 'me' : ''}">${t}</div>`;
+  const out = [B('Барев! Я <b>Ari</b> — по-армянски это «приходи». Помогаю записываться к мастерам Еревана и находить, куда сходить.'), B('Что привело вас сюда?')];
+  if (wz.step === 1) out.push(`<div class="pick"><button data-a="wz" data-v="live">Живу в Ереване<span>Мастера рядом и запись в три касания</span></button><button data-a="wz" data-v="tour">Приехал в гости<span>Прогулки, мастер-классы и местные впечатления</span></button><button data-a="wz" data-v="master">Я мастер<span>Страница, запись и клиенты из афиши</span></button></div>`);
+  if (wz.step >= 2) {
+    out.push(B(S.me.tourist ? 'Приехал в гости' : 'Живу в Ереване', true));
+    out.push(B(S.me.tourist ? 'Добро пожаловать в Ереван! Как к вам обращаться?' : 'Отлично, соседи! Как к вам обращаться?'));
+  }
+  if (wz.step === 2) out.push(`<div class="field"><input id="wzName" placeholder="Имя" value="${esc(S.me.name)}" autocomplete="given-name"></div><p class="small muted">В Telegram имя подставится само</p><button class="btn" data-a="wzName">Дальше</button>`);
+  if (wz.step >= 3) { out.push(B(esc(S.me.name), true)); out.push(B(`Приятно познакомиться, ${esc(S.me.name.split(' ')[0])}! Номер нужен, чтобы мастер мог связаться, если что-то поменяется.`)); }
+  if (wz.step === 3) out.push(`<div class="field"><input id="wzPhone" type="tel" placeholder="+374 ..." value="${esc(S.me.phone)}" autocomplete="tel"></div>${TG ? '<button class="btn ghost" style="margin-bottom:10px" data-a="tgPhone">Поделиться номером из Telegram</button>' : '<p class="small muted">В Telegram это одна кнопка «Поделиться номером»</p>'}<div class="row"><button class="btn ghost" data-a="wzSkip">Позже</button><button class="btn" data-a="wzPhone">Дальше</button></div>`);
+  if (wz.step >= 4) { out.push(B(S.me.phone ? esc(S.me.phone) : 'Позже', true)); out.push(B('И последнее: я храню только имя, телефон и ваши записи — чтобы присылать напоминания. Удалить всё можно в любой момент.')); }
+  if (wz.step === 4) out.push(`<label class="consent"><input type="checkbox" id="wzAgree"><span>${CONSENT}</span></label><button class="btn" style="margin-top:12px" data-a="wzDone">Готово</button>`);
+  if (wz.step === 5) {
+    const d = new Date(S.me.since);
+    return `<div class="done" style="padding-top:20px"><h1>${S.me.tourist ? 'Вы гость Еревана' : 'Вы с нами'}</h1><p class="muted" style="margin-top:8px">Вот ваша карточка Ari</p>
+    <div class="idcard"><div class="no">№ ${S.me.no}</div><h2>${esc(S.me.name)}</h2><p>${S.me.tourist ? 'Гость' : 'Житель'} Еревана с ${MON[d.getMonth()].replace(/я$/, 'я')} ${d.getFullYear()}</p></div>
+    <p class="muted small">Напоминания о записях будут приходить в Telegram — за день и за 2 часа</p>
+    <button class="btn" style="margin-top:18px" data-a="wzGo">${S.me.tourist ? 'Смотреть впечатления' : 'Найти мастера'}</button></div>`;
+  }
+  return `<div class="top"><div class="logo"><i></i>ari</div></div><div class="chat">${out.join('')}</div>`;
+}
+
+function tourBlock() {
+  const evs = S.events.filter(e => e.tourist && fromKey(e.date) >= today()).sort((a, b) => a.date.localeCompare(b.date));
+  if (!evs.length) return '';
+  return `<div class="sec" style="margin-top:${S.me.tourist ? '18px' : '24px'}"><div class="sec-h"><h2>${S.me.tourist ? 'Ереван глазами местных' : 'Впервые в Ереване?'}</h2><button class="link small" data-a="tourAll">Все</button></div>
+  <div class="tours">${evs.map(e => { const m = M(e.masterId); return `<button class="tour" data-a="event" data-id="${e.id}"><span>${shortDay(e.date)}, ${e.time}</span><div><h3>${esc(e.title)}</h3><span>${esc(m.name)}, ${money(e.price)}</span></div></button>`; }).join('')}</div></div>`;
+}
+
+/* ---------- notifications (what the Telegram bot will send) ---------- */
+function notifs() {
+  const out = [], now = Date.now(), T = k => fromKey(k.date).getTime() + toMin(k.time) * 6e4;
+  const lbl = b => { const m = M(b.masterId), e = b.eventId && E(b.eventId), s = !e && svcOf(m, b.serviceId); return { m, e, name: e ? e.title : s ? s.name : 'Визит' }; };
+  if (S.role !== 'master') {
+    S.bookings.filter(b => b.mine).forEach(b => {
+      const { m, e, name } = lbl(b), st = T(b), cr = Date.parse(b.createdAt || 0), ok = active(b) && st > now;
+      const addr = esc(m.address || m.area), map = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Yerevan ' + (m.address || m.area));
+      out.push({ at: cr, text: `✅ <b>${e ? 'Вы идёте' : 'Вы записаны'}</b><br>${esc(name)}, ${esc(m.name)}<br>${human(b.date)}, ${b.time}<br>${addr}` });
+      if (st - 864e5 > cr) out.push({ at: st - 864e5, text: `⏰ Завтра в ${b.time}: ${esc(name)}, ${esc(m.name)}. Всё в силе?`, kb: ok ? (b.confirmed ? `<span class="done">Вы подтвердили</span>` : `<button data-a="confirm" data-id="${b.id}">Буду</button>`) + (e ? '' : `<button data-a="move" data-id="${b.id}">Перенести</button>`) + `<button data-a="cancel" data-id="${b.id}">Отменить</button>` : '' });
+      if (st - 72e5 > cr) out.push({ at: st - 72e5, text: `🕑 Через 2 часа: ${esc(name)}. ${addr}`, kb: ok ? (st - 864e5 > cr ? '' : (b.confirmed ? `<span class="done">Вы подтвердили</span>` : `<button data-a="confirm" data-id="${b.id}">Буду</button>`)) + `<a href="${map}" target="_blank" rel="noopener">Маршрут</a>` + (st - 864e5 > cr ? '' : `<button data-a="cancel" data-id="${b.id}">Отменить</button>`) : '' });
+      if (active(b) && !e) out.push({ at: st + ((b.dur || 60) + 60) * 6e4, text: `Как всё прошло? ${esc(name)}, ${esc(m.name)}. Оценка займёт секунду`, kb: `<button data-a="tab" data-v="mine">Оценить</button><button data-a="rebook" data-id="${b.id}">Записаться снова</button>` });
+      if (b.cancelledAt) out.push({ at: Date.parse(b.cancelledAt), text: `Запись отменена: ${esc(name)}, ${human(b.date)}. Мастер в курсе.` });
+    });
+  } else if (S.myMasterId) {
+    const mine = S.bookings.filter(b => b.masterId === S.myMasterId);
+    mine.forEach(b => {
+      const { name } = lbl(b), st = T(b), cr = Date.parse(b.createdAt || 0);
+      if (b.source !== 'manual' && b.createdAt) out.push({ at: cr, text: `🆕 <b>Новая запись</b><br>${esc(b.clientName)}, ${esc(name)}<br>${human(b.date)}, ${b.time}${b.source === 'afisha' ? '<br>Пришёл из афиши' : ''}` });
+      if (active(b) && st - 36e5 > cr) out.push({ at: st - 36e5, text: `Через час: ${esc(b.clientName)}, ${esc(name)}${b.confirmed ? '. Клиент подтвердил визит ✓' : ''}` });
+      if (b.confirmedAt) out.push({ at: Date.parse(b.confirmedAt), text: `${esc(b.clientName)} подтвердил(а) визит ${shortDay(b.date).toLowerCase()} в ${b.time}` });
+      if (b.movedAt) out.push({ at: Date.parse(b.movedAt), text: `${esc(b.clientName)} перенес(ла) запись на ${shortDay(b.date).toLowerCase()}, ${b.time}` });
+      if (b.cancelledAt) out.push({ at: Date.parse(b.cancelledAt), text: `${esc(b.clientName)} отменил(а) запись ${shortDay(b.date).toLowerCase()} в ${b.time}. Окно снова свободно` });
+    });
+    const days = {}; mine.filter(active).forEach(b => (days[b.date] = days[b.date] || []).push(b));
+    Object.entries(days).forEach(([k, list]) => { list.sort((a, b) => a.time.localeCompare(b.time)); out.push({ at: fromKey(k).getTime() + 9 * 36e5, text: `☀️ Доброе утро! ${human(k).split(',')[0]} ${list.length} ${plural(list.length, 'запись', 'записи', 'записей')}:<br>${list.map(b => `${b.time} ${esc(b.clientName)}`).join('<br>')}` }); });
+  }
+  return out.filter(n => n.at > 0).sort((a, b) => a.at - b.at);
+}
+function stamp(t) { const d = new Date(t), k = dkey(d); return (k === dkey(today()) ? 'сегодня' : shortDay(k).toLowerCase()) + ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+let demoAll = false;
+VIEWS.inbox = () => {
+  const all = notifs(), now = Date.now() + (demoAll ? 14 * 864e5 : 0), got = all.filter(n => n.at <= now).slice(-30), next = all.filter(n => n.at > now && n.at < now + 14 * 864e5).slice(0, 12);
+  const master = S.role === 'master';
+  return `${topBar()}<div class="hello"><h1>Уведомления</h1><p class="muted">${LIVE ? 'Эти сообщения бот Ari присылает вам в Telegram' : 'Так их будет присылать бот Ari в Telegram'}${master ? ' — вам как мастеру' : ''}</p></div>
+  ${demoAll ? `<div class="note" style="margin-top:14px">Тестовый режим: показаны и будущие напоминания. <button class="link" data-a="demoAll">Вернуть как было</button></div>` : ''}
+  ${got.length ? `<div class="chat" style="margin-top:18px">${got.map(n => `<div class="bub">${n.text}${n.kb ? `<div class="kb">${n.kb}</div>` : ''}<span class="when">${stamp(n.at)}</span></div>`).join('')}</div>` : `<div class="empty card" style="margin-top:18px"><h2>Пока тихо</h2><p class="muted">${master ? 'Как только кто-то запишется, здесь появится уведомление' : 'Запишитесь к мастеру — подтверждение и напоминания придут сюда'}</p></div>`}
+  ${next.length ? `<div class="sec"><div class="sec-h"><h2>Запланировано</h2></div><button class="btn ghost small" style="width:100%;margin-bottom:12px" data-a="demoAll">Показать их сейчас — для теста</button><div class="card" style="padding:4px 16px">${next.map(n => `<div class="sched"><b>${stamp(n.at)}</b><span>${n.text.replace(/<br>/g, ', ').replace(/<[^>]+>/g, '')}</span></div>`).join('')}</div></div>` : ''}`;
+};
+
+function evCard(e) {
+  const m = M(e.masterId), d = fromKey(e.date), left = placesLeft(e);
+  return `<button class="card ev" data-a="event" data-id="${e.id}"><div class="date"><b>${d.getDate()}</b><span>${MONS[d.getMonth()]}</span></div><div style="flex:1;min-width:0"><h3>${esc(e.title)}</h3><p class="small muted" style="margin-top:3px">${WDS[d.getDay()]}, ${e.time}, ${esc(m.name)}</p><p style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="tag">${money(e.price)}</span>${left <= 3 ? `<span class="tag hot">${left > 0 ? 'осталось ' + left : 'мест нет'}</span>` : ''}</p></div></button>`;
+}
+
+/* ---------- master onboarding ---------- */
+let ob = null;
+function obInit() { ob = { step: 1, name: S.me.name || '', cat: '', about: '', svcs: [], days: [1,2,3,4,5], from: 10, to: 19, area: 'Кентрон', address: '', prepayOn: false, prepay: 5000, payInfo: '', photo: '', agree: false }; }
+function onboardView() {
+  if (!ob) obInit();
+  const bar = `<div class="steps">${[1,2,3,4].map(i => `<i class="${i <= ob.step ? 'on' : ''}"></i>`).join('')}</div>`;
+  let body = '';
+  if (ob.step === 1) body = `<h1>Страница мастера за 5 минут</h1><p class="muted" style="margin:8px 0 22px">Клиенты будут записываться сами, а вы — получать уведомления</p>
+    <div class="stack"><div class="upload"><label for="obPhoto">${ob.photo ? `<div class="ava ph xl" style="background-image:url('${ob.photo}')"></div>` : `<div class="ava xl" style="background:var(--line);color:var(--muted);font-size:28px">+</div>`}</label><div><b>${ob.photo ? 'Отличное фото' : 'Добавьте фото'}</b><p class="small muted">${ob.photo ? '<label for="obPhoto" class="link" style="cursor:pointer">Заменить</label>' : 'С фото записываются в разы охотнее'}</p></div><input id="obPhoto" type="file" accept="image/*" hidden></div>
+    <div class="field"><label for="obName">Как вас зовут</label><input id="obName" value="${esc(ob.name)}" placeholder="Имя и фамилия"></div>
+    <div class="field"><label>Чем занимаетесь</label><div class="chips" style="flex-wrap:wrap">${CATS.map(c => `<button class="chip ${ob.cat === c.id ? 'on' : ''}" data-a="obCat" data-v="${c.id}">${c.name}</button>`).join('')}</div></div>
+    <div class="field"><label for="obAbout">Пара слов о себе <span style="font-weight:400">— по желанию</span></label><textarea id="obAbout" placeholder="Например: 5 лет практики, работаю мягко и без спешки">${esc(ob.about)}</textarea></div></div>`;
+  if (ob.step === 2) body = `<h1>Услуги и цены</h1><p class="muted" style="margin:8px 0 22px">Мы подготовили популярные услуги. Отметьте свои и поправьте цены</p>
+    <div class="card" style="padding:4px 16px">${ob.svcs.map((s, i) => `<label class="tmpl"><input type="checkbox" data-a="obSvc" data-i="${i}" ${s.on ? 'checked' : ''}><span class="nm"><b style="font-weight:600">${esc(s.name)}</b><br><span class="small muted">${s.dur} мин</span></span><input type="number" inputmode="numeric" data-price="${i}" value="${s.price}" aria-label="Цена"></label>`).join('')}</div>
+    <div class="card" style="margin-top:12px"><p style="font-weight:600;margin-bottom:10px">Своя услуга</p><div class="stack"><input id="nsName" class="field" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px" placeholder="Название"><div class="row"><input id="nsDur" type="number" inputmode="numeric" placeholder="Минут" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0"><input id="nsPrice" type="number" inputmode="numeric" placeholder="Цена, ֏" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0"></div><button class="btn ghost small" data-a="obAdd" style="width:100%">Добавить</button></div></div>`;
+  if (ob.step === 3) body = `<h1>Когда принимаете</h1><p class="muted" style="margin:8px 0 22px">Клиенты увидят только свободные окна. Всё можно поменять потом</p>
+    <div class="chips" style="margin-bottom:14px"><button class="chip" data-a="preset" data-v="w">Будни 10–19</button><button class="chip" data-a="preset" data-v="a">Каждый день 11–20</button><button class="chip" data-a="preset" data-v="e">Выходные 10–18</button></div>
+    <div class="field"><label>Рабочие дни</label><div class="dtog">${[1,2,3,4,5,6,0].map(d => `<button class="${ob.days.includes(d) ? 'on' : ''}" data-a="obDay" data-v="${d}">${WDS[d]}</button>`).join('')}</div></div>
+    <div class="row" style="margin-top:16px"><div class="field"><label for="obFrom">С</label><select id="obFrom">${hours(ob.from)}</select></div><div class="field"><label for="obTo">До</label><select id="obTo">${hours(ob.to)}</select></div></div>`;
+  if (ob.step === 4) body = `<h1>Где вас найти</h1><p class="muted" style="margin:8px 0 22px">Адрес появится в подтверждении записи вместе с маршрутом</p>
+    <div class="stack"><div class="field"><label>Район</label><div class="chips" style="flex-wrap:wrap">${AREAS.map(a => `<button class="chip ${ob.area === a ? 'on' : ''}" data-a="obArea" data-v="${a}">${a}</button>`).join('')}</div></div>
+    <div class="field"><label for="obAddr">Адрес</label><input id="obAddr" value="${esc(ob.address)}" placeholder="Улица, дом, офис"></div>
+    <div class="card"><div class="toggle"><div><b>Брать предоплату</b><p class="small muted">Меньше отмен в последний момент</p></div><button class="sw ${ob.prepayOn ? 'on' : ''}" data-a="obPre" aria-label="Предоплата"></button></div>
+    ${ob.prepayOn ? `<div class="field" style="margin-top:12px"><label for="obPreAmt">Сумма, ֏</label><input id="obPreAmt" type="number" inputmode="numeric" value="${ob.prepay}"></div>
+    <div class="field" style="margin-top:12px"><label for="obPay">Куда клиенту перевести</label><input id="obPay" value="${esc(ob.payInfo)}" placeholder="Idram, Telcell или ссылка на оплату"><p class="small muted">Деньги идут напрямую вам, сервис их не касается. Номер карты сюда не пишите</p></div>` : ''}</div>
+    ${ob.cat === 'tour' ? `<div class="card"><div class="field"><label for="obLangs">На каких языках проводите</label><input id="obLangs" value="${esc(ob.langs || '')}" placeholder="русский, английский"></div>
+    <div class="toggle" style="margin-top:14px"><div><b>Я в реестре туруслуг РА</b><p class="small muted">С 2026 года туристические услуги нужно заявлять в электронном реестре Комитета по туризму</p></div><button class="sw ${ob.registry ? 'on' : ''}" data-a="obReg" aria-label="Реестр"></button></div></div>` : ''}
+    <label class="consent"><input type="checkbox" id="obAgree" ${ob.agree ? 'checked' : ''}><span>Принимаю <button class="link" data-a="docs">оферту для мастеров</button> и отвечаю за данные своих клиентов по закону РА о защите персональных данных</span></label></div>`;
+  if (ob.step === 5) {
+    const m = M(S.myMasterId);
+    return `<div class="done"><div class="check">${ICON.check}</div><h1>Ваша страница готова</h1><p class="muted" style="margin:8px 0 22px">Выложите карточку в сторис, и клиенты начнут записываться</p>
+    ${storyCard(m)}
+    <div class="stack" style="margin-top:22px"><button class="btn" data-a="myPage">Посмотреть как клиент</button><button class="btn ghost" data-a="toCab">В кабинет</button></div></div>`;
+  }
+  return `${topBar()}${bar}${body}<div class="row" style="margin-top:26px">${ob.step > 1 ? '<button class="btn ghost" data-a="obBack">Назад</button>' : ''}<button class="btn" data-a="obNext">${ob.step === 4 ? 'Готово' : 'Дальше'}</button></div>`;
+}
+function hours(sel) { let o = ''; for (let h = 7; h <= 23; h++) o += `<option value="${h}" ${h === sel ? 'selected' : ''}>${pad(h)}:00</option>`; return o; }
+function storyCard(m) {
+  const n = nearest(m, 1)[0];
+  return `<div class="story"><div class="logo"><i></i>ari</div><div><p style="opacity:.8;font-size:13px">${catOf(m.cat).name}, ${esc(m.area)}</p><h2 style="margin-top:6px">${esc(m.name)}</h2><p style="margin-top:10px;font-size:13px;opacity:.85">${n ? 'Ближайшее окно: ' + shortDay(n.k).toLowerCase() + ' в ' + n.t : 'Записывайтесь онлайн'}</p></div><div class="cta">Записаться по ссылке</div></div>`;
+}
+function obSaveFields() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value : undefined; };
+  if (ob.step === 1) { ob.name = g('obName').trim(); ob.about = g('obAbout').trim(); }
+  if (ob.step === 2) document.querySelectorAll('[data-price]').forEach(el => { ob.svcs[+el.dataset.price].price = Math.max(0, +el.value || 0); });
+  if (ob.step === 3) { ob.from = +g('obFrom'); ob.to = +g('obTo'); }
+  if (ob.step === 4) { ob.address = g('obAddr').trim(); const p = g('obPreAmt'); if (p !== undefined) ob.prepay = +p || 0; const pi = g('obPay'); if (pi !== undefined) ob.payInfo = pi.trim(); const ag = document.getElementById('obAgree'); if (ag) ob.agree = ag.checked; const lg = g('obLangs'); if (lg !== undefined) ob.langs = lg.trim(); }
+}
+function obNext() {
+  obSaveFields();
+  if (ob.step === 1) {
+    if (!ob.name) return toast('Напишите, как вас зовут');
+    if (!ob.cat) return toast('Выберите, чем занимаетесь');
+    if (!ob.svcs.length || ob.svcs.cat !== ob.cat) { ob.svcs = TEMPLATES[ob.cat].map(([name, dur, price], i) => ({ name, dur, price, on: i < 2 })); ob.svcs.cat = ob.cat; }
+  }
+  if (ob.step === 2 && !ob.svcs.some(s => s.on)) return toast('Отметьте хотя бы одну услугу');
+  if (ob.step === 3) { if (!ob.days.length) return toast('Выберите рабочие дни'); if (ob.to - ob.from < 1) return toast('Проверьте часы работы'); }
+  if (ob.step === 4) {
+    if (!ob.agree) return toast('Нужно принять оферту');
+    if (ob.prepayOn && /\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}/.test(ob.payInfo)) return toast('Не указывайте номер карты — лучше Idram, Telcell или ссылку');
+    const m = { id: 'my_' + uid(), name: ob.name, cat: ob.cat, about: ob.about, area: ob.area, address: ob.address, prepay: ob.prepayOn ? ob.prepay : 0, payInfo: ob.prepayOn ? ob.payInfo : '', photo: ob.photo, plan: 'free', langs: ob.langs || '', registry: !!ob.registry,
+      services: ob.svcs.filter(s => s.on).map(s => ({ id: uid(), name: s.name, dur: s.dur, price: s.price })), schedule: { days: ob.days.slice(), from: ob.from, to: ob.to }, rating: 0, reviews: 0, isMine: true };
+    S.masters.unshift(m); S.myMasterId = m.id; if (!S.me.name) S.me.name = ob.name; save();
+  }
+  ob.step++; render(); window.scrollTo(0, 0);
+}
+
+/* ---------- booking sheet ---------- */
+let bk = null;
+function openSheet(html) { $('#sheetIn').innerHTML = '<div class="grab"></div>' + html; $('#veil').classList.add('on'); $('#sheet').classList.add('on'); }
+function closeSheet() { $('#veil').classList.remove('on'); $('#sheet').classList.remove('on'); bk = null; }
+function startBooking(mId, sId, k, t, moveId) {
+  const m = M(mId);
+  bk = { mId, sId: sId || (m.services.length === 1 ? m.services[0].id : null), k: k || null, t: t || null, moveId: moveId || null };
+  if (!bk.k && bk.sId) { const s = svcOf(m, bk.sId); for (let i = 0; i < 21; i++) { const kk = dkey(addDays(today(), i)); if (slotsFor(m, kk, s.dur, moveId).length) { bk.k = kk; break; } } }
+  renderSheet();
+}
+function renderSheet() {
+  const m = M(bk.mId), s = bk.sId && svcOf(m, bk.sId);
+  const step = !s ? 1 : (!bk.t ? 2 : 3);
+  const bar = `<div class="steps">${[1,2,3].map(i => `<i class="${i <= step ? 'on' : ''}"></i>`).join('')}</div>`;
+  let h = '';
+  if (step === 1) h = `<h2>Что делаем?</h2><div class="card" style="padding:4px 16px;margin-top:14px">${m.services.map(x => `<button class="svc" data-a="bkSvc" data-v="${x.id}"><div><b>${esc(x.name)}</b><p class="muted small">${x.dur} мин</p></div><span class="price">${money(x.price)}</span></button>`).join('')}</div>`;
+  if (step === 2) {
+    const days = []; for (let i = 0; i < 14; i++) { const kk = dkey(addDays(today(), i)); days.push({ kk, n: slotsFor(m, kk, s.dur, bk.moveId).length }); }
+    const sl = bk.k ? slotsFor(m, bk.k, s.dur, bk.moveId) : [];
+    h = `<h2>${bk.moveId ? 'Новое время' : 'Когда удобно?'}</h2><p class="muted small" style="margin:4px 0 14px">${esc(s.name)}, ${s.dur} мин${m.services.length > 1 && !bk.moveId ? ' <button class="link" data-a="bkChg">изменить</button>' : ''}</p>
+    <div class="days">${days.map(d => { const x = fromKey(d.kk); return `<button class="day ${bk.k === d.kk ? 'on' : ''}" data-a="bkDay" data-v="${d.kk}" ${d.n ? '' : 'disabled'}><span>${WDS[x.getDay()]}</span><b>${x.getDate()}</b></button>`; }).join('')}</div>
+    <p class="small muted" style="margin:16px 0 10px;font-weight:600">${bk.k ? human(bk.k) : 'Выберите день'}</p>
+    ${sl.length ? [['Утро', 0, 12], ['День', 12, 17], ['Вечер', 17, 24]].map(([n, a, b]) => { const g = sl.filter(t => +t.slice(0, 2) >= a && +t.slice(0, 2) < b); return g.length ? `<p class="tg">${n}</p><div class="grid">${g.map(t => `<button class="slot" data-a="bkTime" data-v="${t}">${t}</button>`).join('')}</div>` : ''; }).join('') : '<p class="muted">В этот день окон нет</p>'}`;
+  }
+  if (step === 3) {
+    const need = !S.me.name || !S.me.phone;
+    h = `<h2>${bk.moveId ? 'Переносим?' : 'Всё верно?'}</h2><div class="card" style="margin-top:14px">
+      <div class="sum"><span class="muted">Мастер</span><b>${esc(m.name)}</b></div>
+      <div class="sum"><span class="muted">Услуга</span><b>${esc(s.name)}</b></div>
+      <div class="sum"><span class="muted">Когда</span><b>${shortDay(bk.k)}, ${bk.t}</b></div>
+      <div class="sum"><span class="muted">Стоимость</span><b>${money(s.price)}</b></div></div>
+      ${need ? `<div class="stack" style="margin-top:14px"><p class="small muted">Один раз — чтобы мастер знал, кого ждать. В Telegram это заполнится само</p><div class="field"><input id="meName" placeholder="Ваше имя" value="${esc(S.me.name)}" autocomplete="given-name"></div><div class="field"><input id="mePhone" type="tel" placeholder="+374 ..." value="${esc(S.me.phone)}" autocomplete="tel"></div></div>` : `<p class="small muted" style="margin-top:12px">${esc(S.me.name)}, ${esc(S.me.phone)}</p>`}
+      ${m.prepay && !bk.moveId ? `<div class="note" style="margin-top:14px">Предоплата ${money(m.prepay)} переводится напрямую мастеру. Бесплатная отмена за 24 часа до визита.</div>` : ''}
+      ${S.me.consent ? '' : `<label class="consent"><input type="checkbox" id="bkAgree"><span>${CONSENT}</span></label>`}
+      <div class="row" style="margin-top:18px"><button class="btn ghost" data-a="bkBack">Назад</button><button class="btn" data-a="bkOk">${bk.moveId ? 'Перенести' : 'Записаться'}</button></div>`;
+  }
+  openSheet(bar + h);
+}
+function confirmBooking() {
+  const n = document.getElementById('meName'), p = document.getElementById('mePhone');
+  if (n) { if (!n.value.trim()) return toast('Как вас зовут?'); S.me.name = n.value.trim(); }
+  if (p) { if (p.value.replace(/\D/g, '').length < 8) return toast('Проверьте номер телефона'); S.me.phone = p.value.trim(); }
+  const ag = document.getElementById('bkAgree'); if (ag) { if (!ag.checked) return toast('Нужно ваше согласие на обработку данных'); S.me.consent = new Date().toISOString(); }
+  const m = M(bk.mId), s = svcOf(m, bk.sId);
+  if (!slotsFor(m, bk.k, s.dur, bk.moveId).includes(bk.t)) { toast('Это время только что заняли'); bk.t = null; return renderSheet(); }
+  let id, moved = false;
+  if (bk.moveId) { const b = S.bookings.find(x => x.id === bk.moveId); b.date = bk.k; b.time = bk.t; b.movedAt = new Date().toISOString(); b.confirmed = false; id = b.id; moved = true; }
+  else { id = uid(); S.bookings.push({ id, masterId: m.id, serviceId: s.id, date: bk.k, time: bk.t, dur: s.dur, clientName: S.me.name, mine: true, status: 'active', source: view.name === 'event' ? 'afisha' : 'catalog', createdAt: new Date().toISOString() }); }
+  save(); closeSheet(); go({ name: 'done', id, moved });
+}
+
+/* ---------- other sheets ---------- */
+function askNameThen(fn) {
+  if (S.me.name && S.me.phone && S.me.consent) return fn();
+  openSheet(`<h2>Как вас записать?</h2><p class="muted small" style="margin:6px 0 14px">Один раз — дальше запомним</p><div class="stack"><div class="field"><input id="meName" placeholder="Ваше имя" value="${esc(S.me.name)}"></div><div class="field"><input id="mePhone" type="tel" placeholder="+374 ..." value="${esc(S.me.phone)}"></div>${S.me.consent ? '' : `<label class="consent"><input type="checkbox" id="nmAgree"><span>${CONSENT}</span></label>`}<button class="btn" data-a="nameOk">Продолжить</button></div>`);
+  askNameThen.fn = fn;
+}
+function eventSheet() {
+  openSheet(`<h2>Новое событие</h2><p class="muted small" style="margin:6px 0 14px">Появится в афише сразу после публикации</p><div class="stack">
+  <div class="field"><label for="evT">Название</label><input id="evT" placeholder="Например: воркшоп по самомассажу"></div>
+  <div class="row"><div class="field"><label for="evD">Дата</label><input id="evD" type="date" value="${dkey(addDays(today(), 3))}" min="${dkey(today())}"></div><div class="field"><label for="evTm">Время</label><input id="evTm" type="time" value="18:00"></div></div>
+  <div class="row"><div class="field"><label for="evP">Цена, ֏</label><input id="evP" type="number" inputmode="numeric" value="5000"></div><div class="field"><label for="evN">Мест</label><input id="evN" type="number" inputmode="numeric" value="10"></div></div>
+  <div class="field"><label for="evDesc">Что будет</label><textarea id="evDesc" placeholder="Коротко и по делу: что участники получат"></textarea></div>
+  <p class="small muted">Участники платят вам напрямую. Размещение в афише входит в тариф Pro, на бесплатном — ${money(EVENT_FEE)} за событие</p>
+  <button class="btn" data-a="evOk">Опубликовать в афише</button></div>`);
+}
+function manualSheet() {
+  const m = M(S.myMasterId);
+  openSheet(`<h2>Добавить запись</h2><p class="muted small" style="margin:6px 0 14px">Для клиентов, которые написали в мессенджер или позвонили</p><div class="stack">
+  <div class="field"><label for="mnN">Клиент</label><input id="mnN" placeholder="Имя"></div>
+  <div class="field"><label for="mnS">Услуга</label><select id="mnS">${m.services.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div>
+  <div class="row"><div class="field"><label for="mnD">Дата</label><input id="mnD" type="date" value="${dkey(today())}" min="${dkey(today())}"></div><div class="field"><label for="mnT">Время</label><input id="mnT" type="time" value="${pad(m.schedule.from)}:00"></div></div>
+  <button class="btn" data-a="mnOk">Добавить</button></div>`);
+}
+function svcSheet() {
+  const m = M(S.myMasterId);
+  openSheet(`<h2>Услуги и график</h2><div class="card" style="padding:4px 16px;margin-top:14px">${m.services.map((s, i) => `<div class="tmpl"><span class="nm"><b style="font-weight:600">${esc(s.name)}</b><br><span class="small muted">${s.dur} мин</span></span><input type="number" inputmode="numeric" data-ep="${i}" value="${s.price}" aria-label="Цена"></div>`).join('')}</div>
+  <div class="field" style="margin-top:16px"><label>Рабочие дни</label><div class="dtog" id="edDays">${[1,2,3,4,5,6,0].map(d => `<button class="${m.schedule.days.includes(d) ? 'on' : ''}" data-a="edDay" data-v="${d}">${WDS[d]}</button>`).join('')}</div></div>
+  <div class="row" style="margin-top:12px"><div class="field"><label for="edF">С</label><select id="edF">${hours(m.schedule.from)}</select></div><div class="field"><label for="edT">До</label><select id="edT">${hours(m.schedule.to)}</select></div></div>
+  <button class="btn" style="margin-top:18px" data-a="edOk">Сохранить</button>`);
+}
+
+/* ---------- actions ---------- */
+document.addEventListener('input', e => {
+  if (e.target.id === 'q') { q = e.target.value; const pos = e.target.selectionStart; render(); const el = $('#q'); el.focus(); el.setSelectionRange(pos, pos); }
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'obPhoto' && e.target.files[0]) {
+    obSaveFields();
+    const img = new Image(), url = URL.createObjectURL(e.target.files[0]);
+    img.onload = () => { const c = document.createElement('canvas'), k = Math.min(1, 480 / Math.max(img.width, img.height)); c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); ob.photo = c.toDataURL('image/jpeg', 0.8); URL.revokeObjectURL(url); render(); };
+    img.src = url; return;
+  }
+  if (e.target.dataset.a === 'obSvc') { obSaveFields(); ob.svcs[+e.target.dataset.i].on = e.target.checked; }
+});
+$('#veil').addEventListener('click', closeSheet);
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  const a = el.dataset.a, id = el.dataset.id, v = el.dataset.v;
+  if (a === 'obSvc') return;
+  const act = {
+    back, tab: () => tab(v),
+    role: () => { S.role = S.role === 'master' ? 'client' : 'master'; save(); tab(S.role === 'master' ? 'cab' : 'home'); },
+    asClient: () => { S.role = 'client'; save(); tab('home'); },
+    cat: () => { cat = v; q = ''; render(); },
+    master: () => go({ name: 'master', id }),
+    event: () => go({ name: 'event', id }),
+    book: () => startBooking(id, el.dataset.s),
+    quick: () => startBooking(id, M(id).services[0].id, el.dataset.k, el.dataset.t),
+    rebook: () => { const b = S.bookings.find(x => x.id === id); if (view.name !== 'master') go({ name: 'master', id: b.masterId }); startBooking(b.masterId, b.serviceId); },
+    move: () => { const b = S.bookings.find(x => x.id === id); startBooking(b.masterId, b.serviceId, b.date, null, b.id); },
+    cancel: () => {
+      openSheet(`<h2>Отменить запись?</h2><p class="muted" style="margin:8px 0 18px">Мастер получит уведомление, а время освободится для других</p><div class="row"><button class="btn ghost" data-a="close">Оставить</button><button class="btn" data-a="cancelOk" data-id="${id}">Отменить</button></div>`);
+    },
+    cancelOk: () => { const b = S.bookings.find(x => x.id === id); b.status = 'cancelled'; b.cancelledAt = new Date().toISOString(); save(); closeSheet(); render(); toast('Запись отменена. Мастер получил уведомление'); },
+    close: closeSheet,
+    rate: () => { const b = S.bookings.find(x => x.id === id); b.rating = +v; save(); render(); toast('Спасибо! Мастер увидит оценку'); },
+    go: () => askNameThen(() => { const ev = E(id); const bid = uid(); S.bookings.push({ id: bid, eventId: ev.id, masterId: ev.masterId, date: ev.date, time: ev.time, dur: ev.dur, clientName: S.me.name, mine: true, status: 'active', source: 'afisha', createdAt: new Date().toISOString() }); save(); closeSheet(); go({ name: 'done', id: bid }); }),
+    nameOk: () => { const n = $('#meName').value.trim(), p = $('#mePhone').value.trim(); if (!n) return toast('Как вас зовут?'); if (p.replace(/\D/g, '').length < 8) return toast('Проверьте номер телефона'); const ag = document.getElementById('nmAgree'); if (ag && !ag.checked) return toast('Нужно ваше согласие на обработку данных'); if (ag) S.me.consent = new Date().toISOString(); S.me.name = n; S.me.phone = p; save(); askNameThen.fn(); },
+    bkSvc: () => { bk.sId = v; bk.t = null; bk.k = null; startBooking(bk.mId, v, null, null, bk.moveId); },
+    bkChg: () => { bk.sId = null; bk.t = null; renderSheet(); },
+    bkDay: () => { bk.k = v; bk.t = null; renderSheet(); },
+    bkTime: () => { bk.t = v; renderSheet(); },
+    bkBack: () => { bk.t = null; renderSheet(); },
+    bkOk: confirmBooking,
+    reset: () => { if (LIVE) return; if (confirm('Сбросить все данные прототипа?')) { S = seed(); ob = null; wz.step = 1; save(); tab('home'); } },
+    /* onboarding */
+    obCat: () => { obSaveFields(); ob.cat = v; render(); },
+    obDay: () => { obSaveFields(); const d = +v; ob.days = ob.days.includes(d) ? ob.days.filter(x => x !== d) : [...ob.days, d]; render(); },
+    preset: () => { const P = { w: [[1,2,3,4,5], 10, 19], a: [[0,1,2,3,4,5,6], 11, 20], e: [[6,0], 10, 18] }[v]; [ob.days, ob.from, ob.to] = [P[0].slice(), P[1], P[2]]; render(); },
+    obArea: () => { obSaveFields(); ob.area = v; render(); },
+    obPre: () => { obSaveFields(); ob.prepayOn = !ob.prepayOn; render(); },
+    obAdd: () => { obSaveFields(); const n = $('#nsName').value.trim(), d = +$('#nsDur').value, p = +$('#nsPrice').value; if (!n || !d) return toast('Нужны название и длительность'); ob.svcs.push({ name: n, dur: d, price: p || 0, on: true }); render(); },
+    obNext, obBack: () => { obSaveFields(); ob.step--; render(); },
+    toCab: () => { ob = null; tab('cab'); },
+    myPage: () => { ob = null; S.role = 'client'; save(); hist = []; view = { name: 'master', id: S.myMasterId }; render(); window.scrollTo(0, 0); toast('Так вашу страницу видят клиенты'); },
+    story: () => openSheet(`<h2 style="text-align:center;margin-bottom:16px">Карточка для сторис</h2>${storyCard(M(S.myMasterId))}<p class="muted small" style="text-align:center;margin-top:14px">В полной версии её можно будет скачать одной кнопкой</p>`),
+    newEvent: eventSheet,
+    evOk: () => {
+      const t = $('#evT').value.trim(), d = $('#evD').value, tm = $('#evTm').value;
+      if (!t) return toast('Добавьте название'); if (!d || !tm) return toast('Укажите дату и время');
+      S.events.push({ id: uid(), masterId: S.myMasterId, title: t, date: d, time: tm, dur: 90, price: +$('#evP').value || 0, places: +$('#evN').value || 10, desc: $('#evDesc').value.trim() || 'Подробности у ведущего.' });
+      save(); closeSheet(); render(); toast(M(S.myMasterId).plan === 'pro' ? 'Событие в афише' : 'Событие в афише. Размещение ' + money(EVENT_FEE) + ' — в следующем счёте');
+    },
+    manual: manualSheet,
+    mnOk: () => {
+      const n = $('#mnN').value.trim(); if (!n) return toast('Кто клиент?');
+      const m = M(S.myMasterId), s = svcOf(m, $('#mnS').value);
+      S.bookings.push({ id: uid(), masterId: m.id, serviceId: s.id, date: $('#mnD').value, time: $('#mnT').value, dur: s.dur, clientName: n, mine: false, status: 'active', source: 'manual' });
+      save(); closeSheet(); render(); toast('Запись добавлена');
+    },
+    editSvc: svcSheet,
+    afF: () => { afF = v; render(); },
+    demoAll: () => { demoAll = !demoAll; render(); window.scrollTo(0, demoAll ? 0 : 0); },
+    tourAll: () => { afF = 'tour'; tab('afisha'); },
+    obReg: () => { obSaveFields(); ob.registry = !ob.registry; render(); },
+    confirm: () => { const b = S.bookings.find(x => x.id === id); b.confirmed = true; b.confirmedAt = new Date().toISOString(); save(); render(); toast('Отлично, мастер увидит, что вы придёте'); },
+    wz: () => wzAct(v),
+    wzName: () => { const n = $('#wzName').value.trim(); if (!n) return toast('Как к вам обращаться?'); S.me.name = n; wz.step = 3; render(); },
+    wzPhone: () => { const p = $('#wzPhone').value.trim(); if (p && p.replace(/\D/g, '').length < 8) return toast('Проверьте номер'); S.me.phone = p; wz.step = 4; render(); },
+    wzSkip: () => { wz.step = 4; render(); },
+    wzDone: () => { if (!$('#wzAgree').checked) return toast('Нужно ваше согласие на обработку данных'); S.me.consent = new Date().toISOString(); S.me.no = 1200 + Math.floor(Math.random() * 800); S.me.since = new Date().toISOString(); wz.step = 5; save(); render(); },
+    wzGo: () => { S.me.joined = true; wz.step = 1; save(); hist = []; view = { name: S.me.tourist ? 'afisha' : 'home' }; if (S.me.tourist) afF = 'tour'; render(); window.scrollTo(0, 0); },
+    plan: () => go({ name: 'plan' }),
+    tgPhone: () => W.requestContact(ok => { if (!ok) return toast('Можно ввести номер вручную'); toast('Секунду…'); setTimeout(async () => { try { await sync(); } catch (e) {} if (S.me.phone) { wz.step = 4; render(); } else toast('Номер не дошёл — введите вручную'); }, 1500); }),
+    delMe: () => openSheet(`<h2>Удалить все данные?</h2><p class="muted" style="margin:8px 0 18px">Будущие записи отменятся, мастера получат уведомление. Страница мастера тоже удалится. Отменить это нельзя</p><div class="row"><button class="btn ghost" data-a="close">Оставить</button><button class="btn" data-a="delOk">Удалить</button></div>`),
+    delOk: async () => { closeSheet(); try { await api('DELETE', '/api/me'); S.me = { name: '', phone: '' }; ob = null; wz.step = 1; S.role = 'client'; hist = []; view = { name: 'home' }; await sync(); toast('Данные удалены'); } catch (e) { toast(e.message); } },
+
+    docs: () => { closeSheet(); go({ name: 'docs' }); },
+    payPro: () => openSheet(`<h2>Подключить Pro</h2><div class="card" style="margin-top:14px"><div class="sum"><span class="muted">Тариф</span><b>Pro, 1 месяц</b></div><div class="sum"><span class="muted">Сумма</span><b>${money(PRO_PRICE)}</b></div><div class="sum"><span class="muted">Получатель</span><b>ИП (реквизиты после регистрации)</b></div></div>
+      <p class="tg">Способ оплаты</p><div class="chips"><button class="chip on">Карта</button><button class="chip">Idram</button><button class="chip">Telcell</button></div>
+      <p class="small muted" style="margin-top:12px">Электронный чек придёт на почту сразу после оплаты</p><button class="btn" style="margin-top:16px" data-a="proOk">Оплатить ${money(PRO_PRICE)}</button>`),
+    proOk: () => { if (LIVE) { closeSheet(); return toast('Онлайн-оплата подписки появится после регистрации ИП'); } M(S.myMasterId).plan = 'pro'; save(); closeSheet(); render(); toast('Pro подключён. В прототипе деньги не списываются'); },
+    edDay: () => { el.classList.toggle('on'); },
+    edOk: () => {
+      const m = M(S.myMasterId);
+      document.querySelectorAll('[data-ep]').forEach(i => { m.services[+i.dataset.ep].price = +i.value || 0; });
+      const days = [...document.querySelectorAll('#edDays button')].map((b, i) => b.classList.contains('on') ? [1,2,3,4,5,6,0][i] : null).filter(x => x !== null);
+      if (!days.length) return toast('Нужен хотя бы один рабочий день');
+      const f = +$('#edF').value, t = +$('#edT').value; if (t <= f) return toast('Проверьте часы работы');
+      m.schedule = { days, from: f, to: t }; save(); closeSheet(); render(); toast('Сохранено');
+    }
+  }[a];
+  if (act) act();
+});
+
+if (S.role === 'master') view = { name: 'cab' };
+render();
+if (TG) {
+  W.ready(); W.expand();
+  const theme = () => document.documentElement.dataset.theme = W.colorScheme;
+  theme(); W.onEvent('themeChanged', theme);
+  W.BackButton.onClick(() => { if ($('#sheet').classList.contains('on')) closeSheet(); else back(); });
+}
+if (LIVE) sync().then(deepLink).catch(e => { $('#app').innerHTML = `<div class="empty" style="padding-top:30vh"><h2>Не получилось загрузить</h2><p class="muted">${esc(e.message)}</p><button class="btn" onclick="location.reload()">Обновить</button></div>`; });
+
+</script>
+</body>
+</html>
