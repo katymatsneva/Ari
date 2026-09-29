@@ -481,7 +481,11 @@ function renderTabs() {
   $('#tabs').innerHTML = `<div class="in">${t.map(([id, l, ic]) => `<button class="tab ${cur === id ? 'on' : ''}" data-a="${id === 'home' && S.role === 'master' ? 'asClient' : 'tab'}" data-v="${id}">${ic}${l}</button>`).join('')}</div>`;
 }
 function ava(m, cls = '') { const c = catOf(m.cat); if (m.photo) return `<div class="ava ph ${cls}" style="background-image:url('${m.photo}')" role="img" aria-label="${esc(m.name)}"></div>`; return `<div class="ava ${cls}" style="background:${c.color}">${esc((m.name || '?').trim()[0] || '?')}</div>`; }
-const CONSENT = 'Соглашаюсь с <button class="link" data-a="docs">пользовательским соглашением</button> и даю согласие на обработку персональных данных';
+const CONSENT = 'Мне есть 18 лет. Соглашаюсь с <button class="link" data-a="docs">пользовательским соглашением и правилами сервиса</button> и даю согласие на обработку персональных данных';
+const pub = m => !m.status || m.status === 'approved';
+const needJoin = fn => (S.me.joined && S.me.consent) ? fn() : toast('Сначала завершите регистрацию');
+const COMPLAINTS = ['Неприемлемый или взрослый контент', 'Мошенничество', 'Фейк: такого мастера или события нет', 'Грубость или небезопасное поведение', 'Другое'];
+const complainLink = (t, id) => LIVE ? `<p style="text-align:center;margin-top:22px"><button class="link small" style="color:var(--muted)" data-a="complain" data-t="${t}" data-id="${id}">Пожаловаться</button></p>` : '';
 
 const VIEWS = {
   home() {
@@ -492,7 +496,13 @@ const VIEWS = {
       const m = M(again.masterId), s = svcOf(m, again.serviceId), weeks = Math.round((today() - fromKey(again.date)) / 6048e5);
       againHtml = `<div class="again">${ava(m)}<div style="flex:1"><p class="small" style="opacity:.75">${weeks} ${plural(weeks, 'неделю', 'недели', 'недель')} назад</p><h3>${esc(s ? s.name : 'Визит')} у ${esc(m.name.split(' ')[0])}</h3></div><button class="btn" data-a="rebook" data-id="${again.id}">Повторить</button></div>`;
     }
-    const list = S.masters.filter(m => (cat === 'all' || m.cat === cat) && (!q || (m.name + ' ' + catOf(m.cat).name + ' ' + m.services.map(s => s.name).join(' ')).toLowerCase().includes(q.toLowerCase())));
+    if (LIVE && !S.masters.some(m => pub(m) && m.id !== S.myMasterId)) return `${topBar()}
+    <div class="hello"><h1>${S.me.name ? 'Привет, ' + esc(S.me.name.split(' ')[0]) : 'Мастера Еревана'}</h1></div>
+    <div class="card" style="margin-top:18px;text-align:center;padding:28px 20px"><h2>Собираем первых мастеров Еревана</h2>
+    <p class="muted" style="margin:10px 0 20px">Скоро здесь появятся массажисты, бьюти-мастера, психологи, фотографы и гиды. Каждого мы проверяем вручную.</p>
+    ${S.me.notifyLaunch ? '<div class="note">Готово — сообщим в чате с ботом, как только откроемся</div>' : '<button class="btn" data-a="notifyLaunch">Сообщить, когда откроемся</button>'}
+    <button class="btn ghost" style="margin-top:10px" data-a="role">Я мастер — хочу в числе первых</button></div>`;
+    const list = S.masters.filter(m => pub(m) && (cat === 'all' || m.cat === cat) && (!q || (m.name + ' ' + catOf(m.cat).name + ' ' + m.services.map(s => s.name).join(' ')).toLowerCase().includes(q.toLowerCase())));
     return `${topBar()}
     <div class="hello"><h1>${S.me.name ? 'Привет, ' + esc(S.me.name.split(' ')[0]) : 'Мастера Еревана'}</h1><p class="muted">Запись без переписки — в три касания</p></div>
     ${againHtml}
@@ -522,6 +532,8 @@ const VIEWS = {
     <div class="sec"><div class="sec-h"><h2>Услуги</h2></div><div class="card" style="padding:4px 16px">${m.services.map(s => `<button class="svc" data-a="book" data-id="${m.id}" data-s="${s.id}"><div><b>${esc(s.name)}</b><p class="muted small">${s.dur} мин</p></div><span class="price">${money(s.price)}</span></button>`).join('') || '<p class="muted" style="padding:12px 0">Мастер ещё не добавил услуги</p>'}</div></div>
     ${evs.length ? `<div class="sec"><div class="sec-h"><h2>События мастера</h2></div><div class="stack">${evs.map(evCard).join('')}</div></div>` : ''}
     ${m.prepay ? `<div class="note" style="margin-top:20px">Мастер берёт предоплату ${money(m.prepay)}. Бесплатная отмена за 24 часа.</div>` : ''}
+    ${m.id === S.myMasterId && !pub(m) ? '<div class="note" style="margin-top:14px">Страница на проверке — клиенты увидят её после одобрения</div>' : ''}
+    ${m.id !== S.myMasterId ? complainLink('master', m.id) : ''}
     <div class="cta-bar"><button class="btn" data-a="book" data-id="${m.id}" ${m.services.length ? '' : 'disabled'}>Записаться</button></div>`;
   },
 
@@ -539,12 +551,15 @@ const VIEWS = {
     <div class="date" style="width:72px;margin-top:6px"><b>${fromKey(e.date).getDate()}</b><span>${MONS[fromKey(e.date).getMonth()]}</span></div>
     <h1 style="margin-top:16px">${esc(e.title)}</h1>
     <p class="muted" style="margin-top:8px">${human(e.date)}, ${e.time}, ${e.dur} мин</p>
+    ${e.status === 'pending' ? '<div class="note" style="margin-top:14px">Событие на проверке — в афише появится после одобрения</div>' : ''}
+    ${e.status === 'rejected' ? `<div class="note" style="margin-top:14px">Не прошло проверку: ${esc(e.rejectReason || '')}</div>` : ''}
     <p style="margin-top:16px">${esc(e.desc)}</p>
     ${m.langs ? `<p class="small muted" style="margin-top:10px">Язык: ${esc(m.langs)}</p>` : ''}
     ${m.registry ? `<p class="badge">${ICON.shield} В реестре туристических услуг РА</p>` : ''}
     <button class="card mcard" style="margin-top:20px" data-a="master" data-id="${m.id}">${ava(m)}<div class="body"><p class="muted small">Ведёт</p><h3>${esc(m.name)}</h3><p class="meta">${esc(m.address || m.area)}</p></div></button>
     <div class="row" style="margin-top:16px"><div class="stat"><b style="font-size:18px">${money(e.price)}</b><span>стоимость</span></div><div class="stat"><b style="font-size:18px">${left}</b><span>${plural(left, 'место осталось', 'места осталось', 'мест осталось')}</span></div></div>
-    <div style="margin-top:24px">${going ? `<div class="note">Вы идёте. Напоминание придёт за день.</div><button class="btn ghost" style="margin-top:10px" data-a="cancel" data-id="${going.id}">Не смогу прийти</button>` : `<button class="btn" data-a="go" data-id="${e.id}" ${left > 0 ? '' : 'disabled'}>${left > 0 ? 'Иду' : 'Мест нет'}</button>`}</div>`;
+    <div style="margin-top:24px">${going ? `<div class="note">Вы идёте. Напоминание придёт за день.</div><button class="btn ghost" style="margin-top:10px" data-a="cancel" data-id="${going.id}">Не смогу прийти</button>` : `<button class="btn" data-a="go" data-id="${e.id}" ${left > 0 ? '' : 'disabled'}>${left > 0 ? 'Иду' : 'Мест нет'}</button>`}</div>
+    ${e.masterId !== S.myMasterId ? complainLink('event', e.id) : ''}`;
   },
 
   mine() {
@@ -590,12 +605,15 @@ const VIEWS = {
     const byDay = {}; mine.slice(0, 30).forEach(b => (byDay[b.date] = byDay[b.date] || []).push(b));
     const visits = name => S.bookings.filter(b => b.masterId === m.id && b.clientName === name && active(b)).length;
     return `${topBar()}<div class="hello"><h1>Привет, ${esc(m.name.split(' ')[0])}</h1><p class="muted">${todayN ? `Сегодня ${todayN} ${plural(todayN, 'запись', 'записи', 'записей')}` : 'Сегодня записей нет'}</p></div>
+    ${m.status === 'pending' ? '<div class="note" style="margin-top:14px"><b>Страница на проверке.</b> Обычно это занимает до суток. Клиенты увидят вас после одобрения — мы пришлём сообщение в бот.</div>' : ''}
+    ${m.status === 'rejected' ? `<div class="note" style="margin-top:14px"><b>Нужно поправить:</b> ${esc(m.rejectReason || '')}<br><button class="link" data-a="editSvc">Исправить профиль</button> — после сохранения страница снова уйдёт на проверку.</div>` : ''}
+    ${m.status === 'hidden' ? '<div class="note" style="margin-top:14px"><b>Страница скрыта</b> после жалоб и ждёт решения модератора.</div>' : ''}
     <div class="stats" style="margin-top:18px"><div class="stat"><b>${week.length}</b><span>записей за 7 дней</span></div><div class="stat"><b>${clients}</b><span>${plural(clients, 'клиент', 'клиента', 'клиентов')}</span></div><div class="stat"><b>${fromAf}</b><span>пришли из афиши</span></div></div>
     <div class="acts" style="margin-top:14px">
       <button class="act" data-a="myPage">Моя страница<span>как её видят клиенты</span></button>
       <button class="act" data-a="newEvent">Создать событие<span>попадёт в афишу</span></button>
       <button class="act" data-a="manual">Добавить запись<span>если написали в WhatsApp</span></button>
-      <button class="act" data-a="editSvc">Услуги и график<span>цены, часы, дни</span></button>
+      <button class="act" data-a="editSvc">Профиль и услуги<span>описание, цены, график</span></button>
       <button class="act" data-a="plan">Тариф<span>${m.plan === 'pro' ? 'Pro активен' : usedThisMonth(m) + ' из ' + FREE_LIMIT + ' записей в месяц'}</span></button>
       <button class="act" data-a="docs">Документы<span>оферта и данные клиентов</span></button>
     </div>
@@ -622,6 +640,7 @@ VIEWS.plan = () => {
 };
 VIEWS.docs = () => {
   const D = [
+    ['Правила сервиса', 'Только для 18+. Запрещены: интимные услуги и «вечеринки 18+», наркотики и другие запрещённые вещества, оружие, азартные игры и ставки, финансовые пирамиды, обещания вылечить болезни, политическая агитация. Новые мастера и события проходят проверку, нарушения можно отправить кнопкой «Пожаловаться»'],
     ['Пользовательское соглашение', 'Для клиентов: как работает запись, отмена и перенос, что сервис не отвечает за качество услуг мастера'],
     ['Политика конфиденциальности', 'Какие данные собираем (имя, телефон, записи), зачем, где храним, как удалить'],
     ['Оферта для мастеров', 'Подписка, цены, оплата на счёт ИП, чеки, ответственность мастера за своих клиентов'],
@@ -709,7 +728,7 @@ VIEWS.inbox = () => {
 
 function evCard(e) {
   const m = M(e.masterId), d = fromKey(e.date), left = placesLeft(e);
-  return `<button class="card ev" data-a="event" data-id="${e.id}"><div class="date"><b>${d.getDate()}</b><span>${MONS[d.getMonth()]}</span></div><div style="flex:1;min-width:0"><h3>${esc(e.title)}</h3><p class="small muted" style="margin-top:3px">${WDS[d.getDay()]}, ${e.time}, ${esc(m.name)}</p><p style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="tag">${money(e.price)}</span>${left <= 3 ? `<span class="tag hot">${left > 0 ? 'осталось ' + left : 'мест нет'}</span>` : ''}</p></div></button>`;
+  return `<button class="card ev" data-a="event" data-id="${e.id}"><div class="date"><b>${d.getDate()}</b><span>${MONS[d.getMonth()]}</span></div><div style="flex:1;min-width:0"><h3>${esc(e.title)}</h3><p class="small muted" style="margin-top:3px">${WDS[d.getDay()]}, ${e.time}, ${esc(m.name)}</p><p style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="tag">${money(e.price)}</span>${e.status === 'pending' ? '<span class="tag">На проверке</span>' : ''}${e.status === 'rejected' ? '<span class="tag">Отклонено</span>' : ''}${left <= 3 ? `<span class="tag hot">${left > 0 ? 'осталось ' + left : 'мест нет'}</span>` : ''}</p></div></button>`;
 }
 
 /* ---------- master onboarding ---------- */
@@ -742,7 +761,7 @@ function onboardView() {
     <label class="consent"><input type="checkbox" id="obAgree" ${ob.agree ? 'checked' : ''}><span>Принимаю <button class="link" data-a="docs">оферту для мастеров</button> и отвечаю за данные своих клиентов по закону РА о защите персональных данных</span></label></div>`;
   if (ob.step === 5) {
     const m = M(S.myMasterId);
-    return `<div class="done"><div class="check">${ICON.check}</div><h1>Ваша страница готова</h1><p class="muted" style="margin:8px 0 22px">Выложите карточку в сторис, и клиенты начнут записываться</p>
+    return `<div class="done"><div class="check">${ICON.check}</div><h1>${LIVE ? 'Страница отправлена на проверку' : 'Ваша страница готова'}</h1><p class="muted" style="margin:8px 0 22px">${LIVE ? 'Обычно проверка занимает до суток — мы пришлём сообщение в бот. А пока подготовьте карточку для сторис' : 'Выложите карточку в сторис, и клиенты начнут записываться'}</p>
     ${storyCard(m)}
     <div class="stack" style="margin-top:22px"><button class="btn" data-a="myPage">Посмотреть как клиент</button><button class="btn ghost" data-a="toCab">В кабинет</button></div></div>`;
   }
@@ -855,7 +874,7 @@ function manualSheet() {
 }
 function svcSheet() {
   const m = M(S.myMasterId);
-  openSheet(`<h2>Услуги и график</h2><div class="card" style="padding:4px 16px;margin-top:14px">${m.services.map((s, i) => `<div class="tmpl"><span class="nm"><b style="font-weight:600">${esc(s.name)}</b><br><span class="small muted">${s.dur} мин</span></span><input type="number" inputmode="numeric" data-ep="${i}" value="${s.price}" aria-label="Цена"></div>`).join('')}</div>
+  openSheet(`<h2>Профиль и услуги</h2><div class="field" style="margin-top:14px"><label for="edAbout">О себе</label><textarea id="edAbout">${esc(m.about || '')}</textarea></div><div class="card" style="padding:4px 16px;margin-top:14px">${m.services.map((s, i) => `<div class="tmpl"><span class="nm"><b style="font-weight:600">${esc(s.name)}</b><br><span class="small muted">${s.dur} мин</span></span><input type="number" inputmode="numeric" data-ep="${i}" value="${s.price}" aria-label="Цена"></div>`).join('')}</div>
   <div class="field" style="margin-top:16px"><label>Рабочие дни</label><div class="dtog" id="edDays">${[1,2,3,4,5,6,0].map(d => `<button class="${m.schedule.days.includes(d) ? 'on' : ''}" data-a="edDay" data-v="${d}">${WDS[d]}</button>`).join('')}</div></div>
   <div class="row" style="margin-top:12px"><div class="field"><label for="edF">С</label><select id="edF">${hours(m.schedule.from)}</select></div><div class="field"><label for="edT">До</label><select id="edT">${hours(m.schedule.to)}</select></div></div>
   <button class="btn" style="margin-top:18px" data-a="edOk">Сохранить</button>`);
@@ -921,7 +940,7 @@ document.addEventListener('click', e => {
       const t = $('#evT').value.trim(), d = $('#evD').value, tm = $('#evTm').value;
       if (!t) return toast('Добавьте название'); if (!d || !tm) return toast('Укажите дату и время');
       S.events.push({ id: uid(), masterId: S.myMasterId, title: t, date: d, time: tm, dur: 90, price: +$('#evP').value || 0, places: +$('#evN').value || 10, desc: $('#evDesc').value.trim() || 'Подробности у ведущего.' });
-      save(); closeSheet(); render(); toast(M(S.myMasterId).plan === 'pro' ? 'Событие в афише' : 'Событие в афише. Размещение ' + money(EVENT_FEE) + ' — в следующем счёте');
+      save(); closeSheet(); render(); toast(LIVE ? 'Готово. Если нужна проверка — опубликуем в течение суток' : M(S.myMasterId).plan === 'pro' ? 'Событие в афише' : 'Событие в афише. Размещение ' + money(EVENT_FEE) + ' — в следующем счёте');
     },
     manual: manualSheet,
     mnOk: () => {
@@ -943,6 +962,9 @@ document.addEventListener('click', e => {
     wzDone: () => { if (!$('#wzAgree').checked) return toast('Нужно ваше согласие на обработку данных'); S.me.consent = new Date().toISOString(); S.me.no = 1200 + Math.floor(Math.random() * 800); S.me.since = new Date().toISOString(); wz.step = 5; save(); render(); },
     wzGo: () => { S.me.joined = true; wz.step = 1; save(); hist = []; view = { name: S.me.tourist ? 'afisha' : 'home' }; if (S.me.tourist) afF = 'tour'; render(); window.scrollTo(0, 0); },
     plan: () => go({ name: 'plan' }),
+    notifyLaunch: () => needJoin(async () => { closeSheet(); try { await api('POST', '/api/notify-launch'); S.me.notifyLaunch = true; render(); toast('Сообщим, как только откроемся'); } catch (e) { toast(e.message); } }),
+    complain: () => openSheet(`<h2>Что не так?</h2><p class="muted small" style="margin:6px 0 14px">Жалоба анонимна для автора. Мы проверим в течение суток</p><div class="card" style="padding:4px 16px">${COMPLAINTS.map((c, i) => `<button class="svc" data-a="complainGo" data-t="${el.dataset.t}" data-id="${id}" data-v="${i}"><b>${c}</b></button>`).join('')}</div>`),
+    complainGo: () => needJoin(async () => { closeSheet(); try { await api('POST', '/api/complaints', { type: el.dataset.t, id, reason: COMPLAINTS[+v] }); toast('Спасибо, мы проверим'); } catch (e) { toast(e.message); } }),
     tgPhone: () => W.requestContact(ok => { if (!ok) return toast('Можно ввести номер вручную'); toast('Секунду…'); setTimeout(async () => { try { await sync(); } catch (e) {} if (S.me.phone) { wz.step = 4; render(); } else toast('Номер не дошёл — введите вручную'); }, 1500); }),
     delMe: () => openSheet(`<h2>Удалить все данные?</h2><p class="muted" style="margin:8px 0 18px">Будущие записи отменятся, мастера получат уведомление. Страница мастера тоже удалится. Отменить это нельзя</p><div class="row"><button class="btn ghost" data-a="close">Оставить</button><button class="btn" data-a="delOk">Удалить</button></div>`),
     delOk: async () => { closeSheet(); try { await api('DELETE', '/api/me'); S.me = { name: '', phone: '' }; ob = null; wz.step = 1; S.role = 'client'; hist = []; view = { name: 'home' }; await sync(); toast('Данные удалены'); } catch (e) { toast(e.message); } },
@@ -959,7 +981,8 @@ document.addEventListener('click', e => {
       const days = [...document.querySelectorAll('#edDays button')].map((b, i) => b.classList.contains('on') ? [1,2,3,4,5,6,0][i] : null).filter(x => x !== null);
       if (!days.length) return toast('Нужен хотя бы один рабочий день');
       const f = +$('#edF').value, t = +$('#edT').value; if (t <= f) return toast('Проверьте часы работы');
-      m.schedule = { days, from: f, to: t }; save(); closeSheet(); render(); toast('Сохранено');
+      m.about = $('#edAbout').value.trim().slice(0, 400);
+      m.schedule = { days, from: f, to: t }; save(); closeSheet(); render(); toast(LIVE && m.status === 'rejected' ? 'Сохранено и отправлено на проверку' : 'Сохранено');
     }
   }[a];
   if (act) act();
