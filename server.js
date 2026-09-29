@@ -7,11 +7,10 @@ const fs = require('fs');
 const crypto = require('crypto');
 const express = require('express');
 const Database = require('better-sqlite3');
-const { Bot, InlineKeyboard } = require('grammy');
+const { Bot, InlineKeyboard, InputFile } = require('grammy');
 
 const {
-  BOT_TOKEN = '',
-  WEBAPP_URL = '',
+  WEBAPP_URL: RAW_URL = '',
   PORT = 3000,
   DB_PATH = path.join(__dirname, 'data', 'ari.db'),
   SEED_DEMO = '',
@@ -19,7 +18,19 @@ const {
   NO_BOT = ''
 } = process.env;
 
-if (!BOT_TOKEN) console.warn('⚠️  BOT_TOKEN не задан — бот и проверка входа работать не будут');
+// Чистим значения от случайных пробелов и кавычек
+const clean = v => String(v || '').trim().replace(/^["']|["']$/g, '').trim();
+const BOT_TOKEN = clean(process.env.BOT_TOKEN);
+const WEBAPP_URL = clean(RAW_URL);
+const TOKEN_OK = /^\d{6,}:[A-Za-z0-9_-]{30,}$/.test(BOT_TOKEN);
+if (!BOT_TOKEN) console.error('❌ BOT_TOKEN не задан. Добавь его во вкладке «Переменные».');
+else if (!TOKEN_OK) console.error(`❌ BOT_TOKEN выглядит неправильно: сейчас он начинается с «${BOT_TOKEN[0]}» и длиной ${BOT_TOKEN.length} символов. Правильный токен начинается с цифр, потом двоеточие, всего около 46 символов. Возьми его в @BotFather: /mybots → бот → API Token.`);
+else console.log(`✅ BOT_TOKEN по формату правильный (${BOT_TOKEN.length} символов)`);
+if (!WEBAPP_URL) console.warn('⚠️  WEBAPP_URL пока не задан — кнопка «Открыть Ari» появится после того, как добавишь адрес');
+const ADMIN_IDS = clean(process.env.ADMIN_IDS).split(/[\s,]+/).map(Number).filter(Boolean);
+if (!ADMIN_IDS.length) console.warn('⚠️  ADMIN_IDS не задан — модерация некому приходит');
+const isAdmin = id => ADMIN_IDS.includes(Number(id));
+process.on('unhandledRejection', e => console.error('Ошибка (сервер продолжает работать):', e && e.message ? e.message : e));
 
 /* ---------- база данных ---------- */
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -47,7 +58,32 @@ CREATE TABLE IF NOT EXISTS bookings (
 CREATE INDEX IF NOT EXISTS b_master_date ON bookings(master_id, date);
 CREATE INDEX IF NOT EXISTS b_client ON bookings(client_tg);
 CREATE TABLE IF NOT EXISTS digests (master_id TEXT, date TEXT, PRIMARY KEY (master_id, date));
+CREATE TABLE IF NOT EXISTS complaints (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, target_type TEXT NOT NULL, target_id TEXT NOT NULL,
+  from_tg INTEGER NOT NULL, reason TEXT, created_at TEXT NOT NULL, resolved INTEGER DEFAULT 0,
+  UNIQUE (target_type, target_id, from_tg)
+);
 `);
+const addCol = (t, c, def) => { if (!db.prepare(`PRAGMA table_info(${t})`).all().some(r => r.name === c)) db.exec(`ALTER TABLE ${t} ADD COLUMN ${c} ${def}`); };
+addCol('masters', 'status', "TEXT DEFAULT 'approved'"); // уже существующие страницы считаем одобренными
+addCol('masters', 'reject_reason', 'TEXT');
+addCol('events', 'status', "TEXT DEFAULT 'approved'");
+addCol('events', 'reject_reason', 'TEXT');
+addCol('users', 'blocked', 'INTEGER DEFAULT 0');
+addCol('users', 'notify_launch', 'INTEGER DEFAULT 0');
+
+/* ---------- модерация: стоп-слова ---------- */
+const STOP = [
+  'секс', 'интим', 'эрот', 'оргия', 'оргии', 'свинг', 'эскорт', 'проститу', 'хэппи энд', 'хеппи энд', 'happy end', '18+', 'порн', 'стриптиз', 'вебкам',
+  'наркот', 'закладк', 'марихуан', 'каннаб', 'гашиш', 'кокаин', 'мефедрон', 'амфетамин', 'мдма', 'экстази', 'псилоцибин',
+  'оружи', 'пистолет', 'боеприпас', 'казино', 'букмекер', 'ставки на спорт', 'ставкам на спорт', 'финансовая пирамида', 'гарантированный доход', 'удвоим',
+  'вылечим', 'излечим', 'исцеление от', 'без лицензии',
+  'sex', 'erotic', 'orgy', 'escort', 'nude', 'nsfw', 'porn', 'strip', 'weed', 'cocaine', 'drugs', 'casino', 'betting',
+  'սեքս', 'էրոտիկ', 'թմրանյութ', 'կազինո'
+];
+const STOP_RE = new RegExp('(^|[^\\p{L}\\p{N}])(' + STOP.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'iu');
+const flagged = (...parts) => { const m = parts.filter(Boolean).join(' \n ').toLowerCase().replace(/ё/g, 'е').match(STOP_RE); return m ? m[2] : null; };
+const REJECT_REASONS = ['Нарушает правила сервиса', 'Мало информации — добавьте описание и фото', 'Не похоже на реальную услугу или событие', 'Запрещённая категория (18+, азартные игры, вещества и т. п.)'];
 
 /* ---------- утилиты ---------- */
 const pad = n => String(n).padStart(2, '0');
@@ -116,6 +152,8 @@ function publicMaster(r) {
   const n = (m.reviews || 0) + rated.n;
   m.rating = n ? Math.round(((base + (rated.s || 0)) / n) * 10) / 10 : 0;
   m.reviews = n;
+  m.status = r.status || 'approved';
+  m.rejectReason = r.reject_reason || undefined;
   delete m.tgId;
   return m;
 }
@@ -144,7 +182,7 @@ if (process.env.CLEAR_DEMO) {
 }
 
 /* ---------- бот ---------- */
-const botOn = BOT_TOKEN && !NO_BOT;
+const botOn = TOKEN_OK && !NO_BOT;
 const bot = botOn ? new Bot(BOT_TOKEN) : null;
 const pendingPhone = new Map(); // номер, которым поделились до согласия; живёт в памяти 1 час
 
@@ -176,7 +214,7 @@ function notify(kind, b) {
 }
 
 if (bot) {
-  bot.command('start', ctx => ctx.reply(
+  bot.command('start', ctx => !WEBAPP_URL ? ctx.reply('Ari почти готов — осталось добавить адрес приложения на сервере.') : ctx.reply(
     'Барев! Я <b>Ari</b> — по-армянски это «приходи».\n\nЗаписывайтесь к мастерам Еревана, находите события и местные впечатления. Напоминания о записях буду присылать сюда.',
     { parse_mode: 'HTML', reply_markup: new InlineKeyboard().webApp('Открыть Ari', WEBAPP_URL) }
   ));
@@ -213,6 +251,83 @@ if (bot) {
     return ctx.answerCallbackQuery();
   });
   bot.callbackQuery('noop', ctx => ctx.answerCallbackQuery());
+
+  /* ----- админка ----- */
+  const adminStats = () => {
+    const q = sql => db.prepare(sql).get().n;
+    return `<b>Панель Ari</b>\n\n👥 Пользователей: ${q('SELECT COUNT(*) n FROM users')}\n🧑‍🎨 Мастеров: ${q(`SELECT COUNT(*) n FROM masters WHERE status = 'approved' AND demo = 0`)} (демо: ${q('SELECT COUNT(*) n FROM masters WHERE demo = 1')})\n` +
+      `⏳ На проверке: ${q(`SELECT COUNT(*) n FROM masters WHERE status = 'pending'`)} мастеров, ${q(`SELECT COUNT(*) n FROM events WHERE status = 'pending'`)} событий\n🚩 Открытых жалоб: ${q('SELECT COUNT(*) n FROM complaints WHERE resolved = 0')}\n` +
+      `📅 Записей за 7 дней: ${db.prepare(`SELECT COUNT(*) n FROM bookings WHERE created_at >= ?`).get(new Date(Date.now() - 7 * 864e5).toISOString()).n}\n🔔 Ждут запуска: ${q('SELECT COUNT(*) n FROM users WHERE notify_launch = 1')}`;
+  };
+  bot.command('admin', ctx => {
+    if (!isAdmin(ctx.from.id)) return ctx.reply(`Эта команда только для администратора. Ваш ID: ${ctx.from.id}`);
+    return ctx.reply(adminStats(), { parse_mode: 'HTML', reply_markup: new InlineKeyboard().text('⏳ Очередь проверки', 'aq').text('🚩 Жалобы', 'ac') });
+  });
+  bot.command('id', ctx => ctx.reply(`Ваш Telegram ID: ${ctx.from.id}`));
+  const adminOnly = fn => async ctx => { if (!isAdmin(ctx.from.id)) return ctx.answerCallbackQuery({ text: 'Только для администратора' }); return fn(ctx); };
+  const done = async (ctx, text) => { await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard().text(text, 'noop') }).catch(() => {}); return ctx.answerCallbackQuery({ text }); };
+
+  bot.callbackQuery('aq', adminOnly(async ctx => {
+    const ms = db.prepare(`SELECT id FROM masters WHERE status = 'pending'`).all(), es = db.prepare(`SELECT id FROM events WHERE status = 'pending'`).all();
+    await ctx.answerCallbackQuery();
+    if (!ms.length && !es.length) return ctx.reply('Очередь пуста ✨');
+    for (const r of ms) await sendCard(ctx.from.id, masterCard(r.id));
+    for (const r of es) await sendCard(ctx.from.id, eventCard(r.id));
+  }));
+  bot.callbackQuery('ac', adminOnly(async ctx => {
+    const cs = db.prepare('SELECT * FROM complaints WHERE resolved = 0 ORDER BY id').all();
+    await ctx.answerCallbackQuery();
+    if (!cs.length) return ctx.reply('Открытых жалоб нет ✨');
+    cs.forEach(c => notifyComplaint(c.id, db.prepare('SELECT COUNT(*) n FROM complaints WHERE target_type = ? AND target_id = ? AND resolved = 0').get(c.target_type, c.target_id).n));
+  }));
+  bot.callbackQuery(/^am:(.+)$/, adminOnly(async ctx => {
+    const id = ctx.match[1], m = getMaster(id); if (!m) return ctx.answerCallbackQuery({ text: 'Уже удалено' });
+    db.prepare(`UPDATE masters SET status = 'approved', reject_reason = NULL WHERE id = ?`).run(id);
+    send(m.tgId, '✅ <b>Ваша страница опубликована!</b>\nТеперь клиенты видят вас в каталоге и могут записываться.', WEBAPP_URL ? new InlineKeyboard().webApp('Открыть кабинет', WEBAPP_URL) : undefined);
+    return done(ctx, '✅ Одобрено');
+  }));
+  bot.callbackQuery(/^ae:(.+)$/, adminOnly(async ctx => {
+    const id = ctx.match[1], e = getEvent(id); if (!e) return ctx.answerCallbackQuery({ text: 'Уже удалено' });
+    db.prepare(`UPDATE events SET status = 'approved', reject_reason = NULL WHERE id = ?`).run(id);
+    const m = getMaster(e.masterId); if (m) send(m.tgId, `✅ Событие «${html(e.title)}» опубликовано в афише`);
+    return done(ctx, '✅ Одобрено');
+  }));
+  bot.callbackQuery(/^(rm|re):(.+)$/, adminOnly(async ctx => {
+    const [, kind, id] = ctx.match, kb = new InlineKeyboard();
+    REJECT_REASONS.forEach((r, i) => kb.text(r, `rr:${kind === 'rm' ? 'm' : 'e'}:${id}:${i}`).row());
+    await ctx.editMessageReplyMarkup({ reply_markup: kb }).catch(() => {});
+    return ctx.answerCallbackQuery({ text: 'Выберите причину' });
+  }));
+  bot.callbackQuery(/^rr:(m|e):(.+):(\d)$/, adminOnly(async ctx => {
+    const [, kind, id, n] = ctx.match, reason = REJECT_REASONS[+n] || REJECT_REASONS[0];
+    if (kind === 'm') {
+      const m = getMaster(id); if (!m) return ctx.answerCallbackQuery({ text: 'Уже удалено' });
+      db.prepare(`UPDATE masters SET status = 'rejected', reject_reason = ? WHERE id = ?`).run(reason, id);
+      send(m.tgId, `Страницу нужно поправить: <b>${html(reason)}</b>\n\nОткройте кабинет → «Услуги и профиль», внесите правки и сохраните — страница снова уйдёт на проверку.`, WEBAPP_URL ? new InlineKeyboard().webApp('Открыть кабинет', WEBAPP_URL) : undefined);
+    } else {
+      const e = getEvent(id); if (!e) return ctx.answerCallbackQuery({ text: 'Уже удалено' });
+      db.prepare(`UPDATE events SET status = 'rejected', reject_reason = ? WHERE id = ?`).run(reason, id);
+      const m = getMaster(e.masterId); if (m) send(m.tgId, `Событие «${html(e.title)}» не прошло проверку: <b>${html(reason)}</b>\nМожно создать его заново с правками.`);
+    }
+    return done(ctx, '❌ Отклонено');
+  }));
+  bot.callbackQuery(/^c(h|k|b):(\d+)$/, adminOnly(async ctx => {
+    const [, act, cid] = ctx.match, c = db.prepare('SELECT * FROM complaints WHERE id = ?').get(+cid);
+    if (!c) return ctx.answerCallbackQuery({ text: 'Жалоба не найдена' });
+    const table = c.target_type === 'event' ? 'events' : 'masters';
+    if (act === 'h') db.prepare(`UPDATE ${table} SET status = 'hidden' WHERE id = ?`).run(c.target_id);
+    if (act === 'k') db.prepare(`UPDATE ${table} SET status = 'approved' WHERE id = ? AND status = 'hidden'`).run(c.target_id);
+    if (act === 'b') {
+      const owner = ownerOf(c.target_type, c.target_id);
+      if (owner && owner.tgId) {
+        db.prepare('UPDATE users SET blocked = 1 WHERE tg_id = ?').run(owner.tgId);
+        db.prepare(`UPDATE masters SET status = 'hidden' WHERE tg_id = ?`).run(owner.tgId);
+        db.prepare(`UPDATE events SET status = 'hidden' WHERE master_id = ?`).run(owner.id);
+      } else db.prepare(`UPDATE ${table} SET status = 'hidden' WHERE id = ?`).run(c.target_id);
+    }
+    db.prepare('UPDATE complaints SET resolved = 1 WHERE target_type = ? AND target_id = ?').run(c.target_type, c.target_id);
+    return done(ctx, { h: '🙈 Скрыто', k: '👌 Оставлено', b: '⛔ Заблокирован' }[act]);
+  }));
   bot.catch(e => console.error('bot error', e.message));
 }
 
@@ -263,6 +378,7 @@ function tick() {
       if (list.length) send(r.tg_id, `☀️ Доброе утро! Сегодня ${list.length} зап.:\n` + list.map(b => `${b.time} — ${html(b.client_name)}`).join('\n'));
     }
   }
+  backup();
   // раз в сутки: удаляем записи старше года (срок хранения из политики)
   const today = dk(now);
   if (lastCleanup !== today) {
@@ -296,7 +412,10 @@ app.use('/api', (req, res, next) => {
   let u = checkInitData(req.get('X-Init-Data'));
   if (!u && DEV_TG_ID && process.env.NODE_ENV !== 'production') u = { id: Number(DEV_TG_ID), first_name: 'Тест' };
   if (!u) return res.status(401).json({ error: 'Откройте приложение через бота в Telegram' });
-  req.tg = u; next();
+  req.tg = u;
+  const row = getUser(u.id);
+  if (row && row.blocked && req.method !== 'GET' && !(req.method === 'DELETE' && req.path === '/me')) return res.status(403).json({ error: 'Аккаунт заблокирован. Если это ошибка, напишите в поддержку' });
+  next();
 });
 const route = fn => (req, res) => { try { res.json(fn(req) || { ok: true }); } catch (e) { res.status(e.code || 500).json({ error: e.code ? e.message : 'Ошибка сервера' }); if (!e.code) console.error(e); } };
 const requireUser = req => getUser(req.tg.id) || fail(403, 'Сначала завершите регистрацию');
@@ -306,12 +425,17 @@ app.get('/api/bootstrap', route(req => {
   const me = u
     ? { name: u.name, phone: u.phone || '', consent: u.consent_at, tourist: !!u.tourist, joined: true, no: u.no, since: u.joined_at }
     : { name: [req.tg.first_name, req.tg.last_name].filter(Boolean).join(' '), phone: pendingPhone.get(uid) || '', joined: false };
-  const masters = db.prepare('SELECT * FROM masters').all().map(publicMaster);
-  const events = db.prepare('SELECT * FROM events WHERE date >= ?').all(dk(Date.now() - 864e5)).map(r => ({ ...JSON.parse(r.data), id: r.id, masterId: r.master_id, date: r.date, time: r.time }));
+  const admin = isAdmin(uid);
+  const masters = db.prepare('SELECT * FROM masters').all().filter(r => r.status === 'approved' || r.tg_id === uid).map(publicMaster);
+  const visible = new Set(masters.filter(m => m.status === 'approved').map(m => m.id));
+  const events = db.prepare('SELECT * FROM events WHERE date >= ?').all(dk(Date.now() - 864e5))
+    .filter(r => (r.status === 'approved' && visible.has(r.master_id)) || (my && r.master_id === my.id))
+    .map(r => ({ ...JSON.parse(r.data), id: r.id, masterId: r.master_id, date: r.date, time: r.time, status: r.status, rejectReason: r.reject_reason || undefined }));
   const bookings = db.prepare('SELECT * FROM bookings WHERE date >= ?').all(dk(Date.now() - 180 * 864e5))
     .filter(b => b.status === 'active' || b.client_tg === uid || (my && b.master_id === my.id))
     .map(b => bookingOut(b, uid, my && my.id));
-  return { me, masters, events, bookings, myMasterId: my ? my.id : null };
+  if (u) me.notifyLaunch = !!u.notify_launch;
+  return { me, masters, events, bookings, myMasterId: my ? my.id : null, isAdmin: admin };
 }));
 
 app.post('/api/me', route(req => {
@@ -350,14 +474,22 @@ app.post('/api/masters', route(req => {
   const data = cleanMaster(b);
   if (!getUser(uid)) db.prepare('INSERT INTO users (tg_id, name, phone, tourist, consent_at, joined_at, no) VALUES (?, ?, ?, 0, ?, ?, ?)').run(uid, data.name, pendingPhone.get(uid) || '', nowIso(), nowIso(), 1000 + db.prepare('SELECT COUNT(*) n FROM users').get().n + 1);
   const id = isId(b.id) && !getMaster(b.id) ? b.id : 'm_' + rid();
-  db.prepare('INSERT INTO masters (id, tg_id, data, plan, created_at) VALUES (?, ?, ?, ?, ?)').run(id, uid, JSON.stringify({ ...data, rating: 0, reviews: 0 }), 'free', nowIso());
+  db.prepare(`INSERT INTO masters (id, tg_id, data, plan, status, created_at) VALUES (?, ?, ?, 'free', 'pending', ?)`).run(id, uid, JSON.stringify({ ...data, rating: 0, reviews: 0 }), nowIso());
+  toModeration('master', id);
   return { ok: true, id };
 }));
 
 app.patch('/api/masters/me', route(req => {
   const my = masterOf(req.tg.id) || fail(404, 'Страница мастера не найдена');
   const data = cleanMaster({ ...my, ...req.body });
+  const row = db.prepare('SELECT status FROM masters WHERE id = ?').get(my.id);
   db.prepare('UPDATE masters SET data = ? WHERE id = ?').run(JSON.stringify({ ...data, rating: my.rating || 0, reviews: my.reviews || 0 }), my.id);
+  // отклонённую страницу после правок отправляем на повторную проверку; одобренную — только если появились стоп-слова
+  const hit = flagged(data.name, data.about, data.services.map(s => s.name).join(' '));
+  if (row.status === 'rejected' || (row.status === 'approved' && hit)) {
+    db.prepare(`UPDATE masters SET status = 'pending', reject_reason = NULL WHERE id = ?`).run(my.id);
+    toModeration('master', my.id);
+  }
 }));
 
 app.post('/api/events', route(req => {
@@ -367,8 +499,13 @@ app.post('/api/events', route(req => {
   if (!isDate(b.date) || !isTime(b.time) || startTs(b.date, b.time) < Date.now()) fail(400, 'Проверьте дату и время');
   const id = isId(b.id) && !getEvent(b.id) ? b.id : 'e_' + rid();
   const data = { title, dur: int(b.dur, 15, 720, 90), price: int(b.price, 0, 1e7, 0), places: int(b.places, 1, 500, 10), desc: str(b.desc, 600) || 'Подробности у ведущего.', tourist: my.cat === 'tour' };
-  db.prepare('INSERT INTO events (id, master_id, date, time, data, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, my.id, b.date, b.time, JSON.stringify(data), nowIso());
-  return { ok: true, id };
+  const trusted = my.status === 'approved' && db.prepare(`SELECT COUNT(*) n FROM events WHERE master_id = ? AND status = 'approved'`).get(my.id).n >= 3
+    && !db.prepare(`SELECT 1 FROM complaints WHERE resolved = 0 AND ((target_type = 'master' AND target_id = ?) OR (target_type = 'event' AND target_id IN (SELECT id FROM events WHERE master_id = ?)))`).get(my.id, my.id);
+  const hit = flagged(data.title, data.desc);
+  const status = trusted && !hit ? 'approved' : 'pending';
+  db.prepare('INSERT INTO events (id, master_id, date, time, data, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, my.id, b.date, b.time, JSON.stringify(data), status, nowIso());
+  if (status === 'pending') toModeration('event', id);
+  return { ok: true, id, status };
 }));
 
 app.post('/api/bookings', route(req => {
@@ -385,6 +522,7 @@ app.post('/api/bookings', route(req => {
   } else if (b.eventId) {
     const u = requireUser(req);
     const e = getEvent(b.eventId) || fail(404, 'Событие не найдено');
+    if (db.prepare('SELECT status FROM events WHERE id = ?').get(e.id).status !== 'approved') fail(403, 'Событие пока недоступно для записи');
     if (startTs(e.date, e.time) < Date.now()) fail(400, 'Событие уже прошло');
     const taken = db.prepare(`SELECT COUNT(*) n FROM bookings WHERE event_id = ? AND status = 'active'`).get(e.id).n;
     if (taken >= e.places) fail(409, 'Мест больше нет');
@@ -393,6 +531,7 @@ app.post('/api/bookings', route(req => {
   } else {
     const u = requireUser(req);
     const m = getMaster(b.masterId) || fail(404, 'Мастер не найден');
+    if (db.prepare('SELECT status FROM masters WHERE id = ?').get(m.id).status !== 'approved' && m.tgId !== uid) fail(403, 'Мастер пока недоступен для записи');
     const s = (m.services || []).find(x => x.id === b.serviceId) || fail(400, 'Услуга не найдена');
     if (!isDate(b.date) || !isTime(b.time) || !slotFree(m, b.date, b.time, s.dur)) fail(409, 'Это время только что заняли — выберите другое');
     row = { id, master_id: m.id, service_id: s.id, event_id: null, client_tg: uid, client_name: u.name, date: b.date, time: b.time, dur: s.dur, source: b.source === 'afisha' ? 'afisha' : 'catalog' };
@@ -436,11 +575,88 @@ app.post('/api/bookings/:id/rate', route(req => {
   db.prepare('UPDATE bookings SET rating = ? WHERE id = ?').run(int(req.body.v, 1, 5, 5), b.id);
 }));
 
+app.post('/api/complaints', route(req => {
+  const uid = req.tg.id, b = req.body || {};
+  requireUser(req);
+  const type = b.type === 'event' ? 'event' : 'master';
+  const exists = type === 'event' ? db.prepare('SELECT 1 FROM events WHERE id = ?').get(b.id) : db.prepare('SELECT 1 FROM masters WHERE id = ?').get(b.id);
+  if (!exists) fail(404, 'Не найдено');
+  const reason = str(b.reason, 300) || 'Без причины';
+  const r = db.prepare('INSERT OR IGNORE INTO complaints (target_type, target_id, from_tg, reason, created_at) VALUES (?, ?, ?, ?, ?)').run(type, b.id, uid, reason, nowIso());
+  if (!r.changes) return { ok: true, duplicate: true };
+  const n = db.prepare('SELECT COUNT(*) n FROM complaints WHERE target_type = ? AND target_id = ? AND resolved = 0').get(type, b.id).n;
+  if (n >= 3) db.prepare(`UPDATE ${type === 'event' ? 'events' : 'masters'} SET status = 'hidden' WHERE id = ? AND status = 'approved'`).run(b.id);
+  notifyComplaint(r.lastInsertRowid, n);
+}));
+
+app.post('/api/notify-launch', route(req => {
+  requireUser(req);
+  db.prepare('UPDATE users SET notify_launch = 1 WHERE tg_id = ?').run(req.tg.id);
+}));
+
+/* ---------- модерация: карточки для админа ---------- */
+function masterCard(id) {
+  const r = db.prepare('SELECT * FROM masters WHERE id = ?').get(id); if (!r) return null;
+  const m = rowToMaster(r), hit = flagged(m.name, m.about, (m.services || []).map(s => s.name).join(' '));
+  const text = `🧑‍🎨 <b>Мастер на проверке</b>${hit ? `\n⚠️ Стоп-слово: «${html(hit)}»` : ''}\n\n<b>${html(m.name)}</b> · ${html(m.cat)}\n${html(m.about || '— без описания —')}\n📍 ${html(m.area)}${m.address ? ', ' + html(m.address) : ''}\n\nУслуги:\n` +
+    (m.services || []).map(s => `• ${html(s.name)} — ${s.dur} мин, ${s.price} ֏`).join('\n');
+  return { text, photo: m.photo, kb: new InlineKeyboard().text('✅ Одобрить', 'am:' + id).text('❌ Отклонить', 'rm:' + id) };
+}
+function eventCard(id) {
+  const e = getEvent(id); if (!e) return null;
+  const m = getMaster(e.masterId), hit = flagged(e.title, e.desc);
+  const text = `🎟 <b>Событие на проверке</b>${hit ? `\n⚠️ Стоп-слово: «${html(hit)}»` : ''}\n\n<b>${html(e.title)}</b>\n${human(e.date)}, ${e.time} · ${e.price} ֏ · ${e.places} мест\nВедёт: ${html(m ? m.name : '?')}\n\n${html(e.desc)}`;
+  return { text, kb: new InlineKeyboard().text('✅ Одобрить', 'ae:' + id).text('❌ Отклонить', 're:' + id) };
+}
+async function sendCard(to, card) {
+  if (!bot || !card) return;
+  try {
+    if (card.photo && card.photo.startsWith('data:image/')) {
+      const buf = Buffer.from(card.photo.split(',')[1], 'base64');
+      await bot.api.sendPhoto(to, new InputFile(buf, 'photo.jpg'), { caption: card.text.slice(0, 1000), parse_mode: 'HTML', reply_markup: card.kb });
+    } else await bot.api.sendMessage(to, card.text.slice(0, 4000), { parse_mode: 'HTML', reply_markup: card.kb });
+  } catch (e) { console.warn('admin card failed', e.description || e.message); }
+}
+function toModeration(type, id) { ADMIN_IDS.forEach(a => sendCard(a, type === 'event' ? eventCard(id) : masterCard(id))); }
+function notifyComplaint(cid, count) {
+  const c = db.prepare('SELECT * FROM complaints WHERE id = ?').get(cid); if (!c) return;
+  const name = c.target_type === 'event' ? (getEvent(c.target_id) || {}).title : (getMaster(c.target_id) || {}).name;
+  const kb = new InlineKeyboard().text('🙈 Скрыть', 'ch:' + cid).text('👌 Всё в порядке', 'ck:' + cid).row().text('⛔ Заблокировать автора', 'cb:' + cid);
+  ADMIN_IDS.forEach(a => send(a, `🚩 <b>Жалоба</b> на ${c.target_type === 'event' ? 'событие' : 'мастера'} «${html(name || '?')}»\nПричина: ${html(c.reason)}\nВсего жалоб: ${count}${count >= 3 ? ' — скрыто автоматически' : ''}`, kb));
+}
+function ownerOf(type, id) {
+  if (type === 'event') { const e = getEvent(id); return e && getMaster(e.masterId); }
+  return getMaster(id);
+}
+
+/* ---------- бэкапы: раз в сутки, храним 14 дней ---------- */
+const BACKUP_DIR = path.join(path.dirname(DB_PATH), 'backups');
+let lastBackup = '';
+async function backup() {
+  const today = dk(Date.now());
+  if (lastBackup === today) return;
+  lastBackup = today;
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    await db.backup(path.join(BACKUP_DIR, `ari-${today}.db`));
+    fs.readdirSync(BACKUP_DIR).filter(f => /^ari-\d{4}-\d{2}-\d{2}\.db$/.test(f) && f.slice(4, 14) < dk(Date.now() - 14 * 864e5)).forEach(f => fs.unlinkSync(path.join(BACKUP_DIR, f)));
+    console.log('💾 Бэкап базы сохранён:', today);
+  } catch (e) { console.error('Бэкап не удался:', e.message); }
+}
+
 /* ---------- запуск ---------- */
 app.listen(PORT, () => console.log(`Ari работает на порту ${PORT}`));
 setInterval(() => { try { tick(); } catch (e) { console.error('tick', e); } }, 60e3);
 if (bot) {
-  bot.api.setChatMenuButton({ menu_button: { type: 'web_app', text: 'Ari', web_app: { url: WEBAPP_URL } } }).catch(e => console.warn('menu button', e.message));
-  bot.start({ onStart: me => console.log(`Бот @${me.username} запущен`) });
+  if (WEBAPP_URL) bot.api.setChatMenuButton({ menu_button: { type: 'web_app', text: 'Ari', web_app: { url: WEBAPP_URL } } }).catch(e => console.warn('Кнопка меню не настроилась:', e.message));
+  bot.api.setMyCommands([{ command: 'start', description: 'Открыть Ari' }, { command: 'privacy', description: 'Какие данные мы храним' }]).catch(() => {});
+  bot.start({ onStart: me => { console.log(`✅ Бот @${me.username} запущен`); ADMIN_IDS.forEach(a => send(a, '🔄 Ari обновлён и работает. /admin — панель')); } }).catch(e => {
+    const code = e.error_code;
+    if (code === 404) console.error('❌ Telegram не нашёл бота с таким токеном (404). Проверь BOT_TOKEN — скопируй заново в @BotFather: /mybots → бот → API Token.');
+    else if (code === 401) console.error('❌ Токен отозван или устарел (401). Возьми свежий в @BotFather: /mybots → бот → API Token.');
+    else if (code === 409) console.error('❌ Бот уже запущен в другом месте (409). Оставь только одну копию сервиса.');
+    else console.error('❌ Бот не запустился:', e.message);
+    console.error('Сайт при этом работает, бот — нет.');
+  });
 }
-module.exports = { app, db, tick, checkInitData };
+module.exports = { app, db, tick, checkInitData, flagged: typeof flagged !== "undefined" ? flagged : null };
